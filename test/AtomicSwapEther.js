@@ -123,22 +123,30 @@ describe("HTLC", function () {
       await htlc.connect(bot2).registerMarketMaker(intro2, pkh2, bchLockTime1, sbchLockTime1, penaltyBPS1, feeBPS1, minSwapAmt1, maxSwapAmt1, statusChecker2.address);
       await htlc.connect(bot2).retireMarketMaker(0);
 
+      await expect(htlc.connect(user1).open(bot1.address, secretLock1, sbchLockTime1/2, pkh1, penaltyBPS1))
+        .to.be.revertedWith("sbch-lock-time-mismatch");
+      await expect(htlc.connect(user1).open(bot1.address, secretLock1, sbchLockTime1, pkh2, penaltyBPS1))
+        .to.be.revertedWith("bch-pkh-mismatch");
       await expect(htlc.connect(user1).open(bot1.address, secretLock1, sbchLockTime1, pkh1, penaltyBPS1/2))
         .to.be.revertedWith("penalty-bps-mismatch");
       await expect(htlc.connect(user1).open(bot1.address, secretLock1, sbchLockTime1, pkh1, penaltyBPS1, {value: minSwapAmt1.sub(1)}))
         .to.be.revertedWith("value-out-of-range");
       await expect(htlc.connect(user1).open(bot1.address, secretLock1, sbchLockTime1, pkh1, penaltyBPS1, {value: maxSwapAmt1.add(1)}))
         .to.be.revertedWith("value-out-of-range");
-      await expect(htlc.connect(user1).open(bot2.address, secretLock1, sbchLockTime1, pkh1, penaltyBPS1, {value: minSwapAmt1.add(1)}))
+      await expect(htlc.connect(user1).open(bot2.address, secretLock2, sbchLockTime1, pkh2, penaltyBPS1, {value: minSwapAmt1.add(1)}))
         .to.be.revertedWith("market-maker-retired");
 
       // ok
-      htlc.connect(user1).open(bot1.address, secretLock1, sbchLockTime1, pkh1, penaltyBPS1, {value: minSwapAmt1.add(1)});
+      await htlc.connect(user1).open(bot1.address, secretLock1, sbchLockTime1, pkh1, penaltyBPS1, {value: minSwapAmt1.add(1)});
 
       await expect(htlc.connect(user2).open(user1.address, secretLock1, sbchLockTime1, pkh2, penaltyBPS1))
         .to.be.revertedWith("used-secret-lock");
       await expect(htlc.connect(user2).open(user1.address, secretLock2, sbchLockTime1, pkh2, 10000))
         .to.be.revertedWith("invalid-penalty-bps");
+
+      await htlc.connect(statusChecker1).setUnavailable(bot1.address, true);
+      await expect(htlc.connect(user1).open(bot1.address, secretLock2, sbchLockTime1, pkh1, penaltyBPS1, {value: minSwapAmt1.add(1)}))
+        .to.be.revertedWith("unavailable");
     });
 
     it("open: ok", async function () {

@@ -1,50 +1,51 @@
 //SPDX-License-Identifier: BSL-1.1
 pragma solidity ^0.8.19;
 
+// HTLC EVM contract, initial version comes from:
 // https://github.com/confio/eth-atomic-swap/blob/master/contracts/AtomicSwapEther.sol
 contract AtomicSwapEther {
 
+    // Market maker info
     struct MarketMaker {
-        address addr;
-        uint64  retiredAt;
-        bytes32 intro;
-        bytes20 bchPkh;
-        uint16  bchLockTime;  // in blocks
-        uint32  sbchLockTime; // in seconds
-        uint16  penaltyBPS;
-        uint16  feeBPS;
-        uint256 minSwapAmt;
-        uint256 maxSwapAmt;
-        address statusChecker;
-        bool    unavailable;
+        address addr;          // EVM address
+        uint64  retiredAt;     // retired time
+        bytes32 intro;         // introduction
+        bytes20 bchPkh;        // BCH P2PKH address
+        uint16  bchLockTime;   // BCH HTLC lock time (in blocks)
+        uint32  sbchLockTime;  // sBCH HTLC lock time (in seconds)
+        uint16  penaltyBPS;    // refund penalty ratio (in BPS)
+        uint16  feeBPS;        // service fee ratio (in BPS)
+        uint256 minSwapAmt;    //
+        uint256 maxSwapAmt;    //
+        address statusChecker; // the one who can set unavailable status
+        bool    unavailable;   // 
     }
 
+    // Swap info
     struct Swap {
-        uint256 timelock; // unlockTime
-        uint256 value;
-        address payable ethTrader;
-        address payable withdrawTrader;
-        bytes20 bchWithdrawPKH;
-        uint16  penaltyBPS;
-        States  state;
-      //bytes32 secretLock;
-        bytes32 secretKey;
+        uint256 timelock;               // unlock time
+        uint256 value;                  // locked value
+        address payable ethTrader;      // the locker
+        address payable withdrawTrader; // the unlocker
+        bytes20 bchWithdrawPKH;         // BCH recipient address (P2PKH)
+        uint16  penaltyBPS;             // refund penalty ratio (in BPS)
+        States  state;                  //
+        bytes32 secretKey;              // 
     }
 
-    enum States {
-        INVALID,
-        OPEN,
-        CLOSED,
-        EXPIRED
-    }
+    // Swap states
+    enum States { INVALID, OPEN, CLOSED, EXPIRED }
 
+    // All swaps
     mapping (bytes32 => Swap) public swaps; // secretLock => Swap
     bytes32[] public secretLocks;
 
+    // Market maker registry
     mapping (address => MarketMaker) public marketMakers;
     address[] public marketMakerAddrs;
 
 
+    // Events
     event Open(address indexed _depositTrader,
                address indexed _withdrawTrader,
                bytes32 _secretLock,
@@ -94,6 +95,7 @@ contract AtomicSwapEther {
         mm.unavailable = b;
     }
 
+    // lock value
     function open(address payable _withdrawTrader,
                   bytes32 _secretLock,
                   uint256 _validPeriod,
@@ -103,9 +105,12 @@ contract AtomicSwapEther {
 
         MarketMaker storage mm = marketMakers[_withdrawTrader];
         if (mm.addr != address(0x0)) { // lock to market maker
+            require(_validPeriod == mm.sbchLockTime, 'sbch-lock-time-mismatch');
+            require(_bchWithdrawPKH == mm.bchPkh, 'bch-pkh-mismatch');
             require(_penaltyBPS == mm.penaltyBPS, 'penalty-bps-mismatch');
             require(msg.value >= mm.minSwapAmt && msg.value <= mm.maxSwapAmt, 'value-out-of-range');
             require(mm.retiredAt == 0 || mm.retiredAt > block.timestamp, 'market-maker-retired');
+            require(!mm.unavailable, 'unavailable');
         } else {
             require(_penaltyBPS < 10000, 'invalid-penalty-bps');
         }
@@ -114,15 +119,14 @@ contract AtomicSwapEther {
 
         // Store the details of the swap.
         Swap memory swap = Swap({
-            timelock: _unlockTime,
-            value: msg.value,
-            ethTrader: payable(msg.sender),
+            timelock      : _unlockTime,
+            value         : msg.value,
+            ethTrader     : payable(msg.sender),
             withdrawTrader: _withdrawTrader,
             bchWithdrawPKH: _bchWithdrawPKH,
-            penaltyBPS: _penaltyBPS,
-          //secretLock: _secretLock,
-            secretKey: 0,
-            state: States.OPEN
+            penaltyBPS    : _penaltyBPS,
+            secretKey     : 0,
+            state         : States.OPEN
         });
         swaps[_secretLock] = swap;
         secretLocks.push(_secretLock);
@@ -132,6 +136,7 @@ contract AtomicSwapEther {
             _bchWithdrawPKH, block.timestamp, _penaltyBPS);
     }
 
+    // unlock value
     function close(bytes32 _secretLock, bytes32 _secretKey) public {
         Swap storage swap = swaps[_secretLock];
         require(swap.state == States.OPEN, 'not-open');
@@ -148,6 +153,7 @@ contract AtomicSwapEther {
         emit Close(_secretLock, _secretKey);
     }
 
+    // refund value
     function expire(bytes32 _secretLock) public {
         Swap storage swap = swaps[_secretLock];
         require(swap.state == States.OPEN, 'not-open');
