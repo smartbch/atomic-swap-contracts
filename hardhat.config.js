@@ -16,10 +16,10 @@ module.exports = {
       // url: 'https://rpc-testnet.smartbch.org',
       url: 'http://13.214.162.63:8545',
       accounts: [
-        '019232d3f45e911d71cd607c3b74be35f297a52b00e5d7134d15814456f02ce6', // deployer
-        'd248df3c728282a66521c94a4852c2d4c7b3c3612ba5ce0baf43e64b2ecc49fb', // bot1
-        '5cf5f6c787232a2b0f79c56e0ce4cc4c02c67f9e586c705f9168c29db4ca922a', // user1
-        'c81da8d6ab29533fc530ee67af1a352da3b7c3b125fa7ab0a9e2c5dece3ea98f', // user2
+        process.env.KEY0 || '019232d3f45e911d71cd607c3b74be35f297a52b00e5d7134d15814456f02ce6', // deployer
+        process.env.KEY1 || 'd248df3c728282a66521c94a4852c2d4c7b3c3612ba5ce0baf43e64b2ecc49fb', // bot1
+        process.env.KEY2 || '5cf5f6c787232a2b0f79c56e0ce4cc4c02c67f9e586c705f9168c29db4ca922a', // user1
+        process.env.KEY3 || 'c81da8d6ab29533fc530ee67af1a352da3b7c3b125fa7ab0a9e2c5dece3ea98f', // user2
       ],
     },
     sbch_mainnet: {
