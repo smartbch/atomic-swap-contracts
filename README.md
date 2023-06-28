@@ -1,4 +1,4 @@
-# HTLC EVM Contract
+# AtomicSwap(HTLC) EVM Contracts
 
 You can use `scripts/htlc.js`  to test HTLC contract on SmartBCH testnet.
 
@@ -7,8 +7,8 @@ You can use `scripts/htlc.js`  to test HTLC contract on SmartBCH testnet.
 ## Prepare
 
 ```bash
-git clone https://github.com/smartbch/atomic-swap.git
-cd tomic-swap/htlc-evm
+git clone https://github.com/smartbch/atomic-swap-contracts.git
+cd atomic-swap-contracts
 npm i
 ```
 
