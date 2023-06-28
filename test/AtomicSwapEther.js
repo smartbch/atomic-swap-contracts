@@ -125,8 +125,6 @@ describe("HTLC", function () {
 
       await expect(htlc.connect(user1).open(bot1.address, secretLock1, sbchLockTime1/2, pkh1, penaltyBPS1))
         .to.be.revertedWith("sbch-lock-time-mismatch");
-      await expect(htlc.connect(user1).open(bot1.address, secretLock1, sbchLockTime1, pkh2, penaltyBPS1))
-        .to.be.revertedWith("bch-pkh-mismatch");
       await expect(htlc.connect(user1).open(bot1.address, secretLock1, sbchLockTime1, pkh1, penaltyBPS1/2))
         .to.be.revertedWith("penalty-bps-mismatch");
       await expect(htlc.connect(user1).open(bot1.address, secretLock1, sbchLockTime1, pkh1, penaltyBPS1, {value: minSwapAmt1.sub(1)}))

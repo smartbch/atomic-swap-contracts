@@ -106,7 +106,6 @@ contract AtomicSwapEther {
         MarketMaker storage mm = marketMakers[_withdrawTrader];
         if (mm.addr != address(0x0)) { // lock to market maker
             require(_validPeriod == mm.sbchLockTime, 'sbch-lock-time-mismatch');
-            require(_bchWithdrawPKH == mm.bchPkh, 'bch-pkh-mismatch');
             require(_penaltyBPS == mm.penaltyBPS, 'penalty-bps-mismatch');
             require(msg.value >= mm.minSwapAmt && msg.value <= mm.maxSwapAmt, 'value-out-of-range');
             require(mm.retiredAt == 0 || mm.retiredAt > block.timestamp, 'market-maker-retired');

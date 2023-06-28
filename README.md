@@ -26,7 +26,7 @@ REPORT_GAS=true npx hardhat test
 
 ```bash
 npx hardhat run scripts/deploy.js --network sbch_testnet
-# HTLC deployed to 0x35189A2DdF5f83Cd5292F6707d0605a9487A1CA7
+# HTLC deployed to 0x3246D84c930794cDFAABBab954BAc58A7c08b4cd
 ```
 
 
@@ -38,7 +38,7 @@ Example:
 ```bash
 HARDHAT_NETWORK=sbch_testnet node ./scripts/htlc.js lock \
 	--signer=2 \
-	--htlc-addr=0x35189A2DdF5f83Cd5292F6707d0605a9487A1CA7 \
+	--htlc-addr=0x3246D84c930794cDFAABBab954BAc58A7c08b4cd \
 	--to-addr=0x8b1C9950aA5c6fF3BB038ff31878dd6a268958f8 \
 	--secret-key=hello \
 	--lock-time=2400 \
@@ -56,7 +56,7 @@ Example:
 ```bash
 HARDHAT_NETWORK=sbch_testnet node ./scripts/htlc.js unlock \
 	--signer=3 \
-	--htlc-addr=0x35189A2DdF5f83Cd5292F6707d0605a9487A1CA7 \
+	--htlc-addr=0x3246D84c930794cDFAABBab954BAc58A7c08b4cd \
 	--secret-key=hello
 ```
 
@@ -69,7 +69,7 @@ Example:
 ```bash
 HARDHAT_NETWORK=sbch_testnet node ./scripts/htlc.js refund \
 	--signer=2 \
-	--htlc-addr=0x35189A2DdF5f83Cd5292F6707d0605a9487A1CA7 \
+	--htlc-addr=0x3246D84c930794cDFAABBab954BAc58A7c08b4cd \
 	--secret-key=hello
 ```
 
@@ -81,7 +81,7 @@ Example:
 
 ```bash
 HARDHAT_NETWORK=sbch_testnet node ./scripts/htlc.js register-bot \
-	--htlc-addr=0x35189A2DdF5f83Cd5292F6707d0605a9487A1CA7 \
+	--htlc-addr=0x3246D84c930794cDFAABBab954BAc58A7c08b4cd \
 	--intro=BCHFANS \
 	--pkh=0x4d027fdd0585302264922bed58b8a84d38776ccb \
 	--bch-lock-time=6 \
@@ -101,7 +101,7 @@ Example:
 
 ```bash
 HARDHAT_NETWORK=sbch_testnet node ./scripts/htlc.js query \
-	--htlc-addr=0x35189A2DdF5f83Cd5292F6707d0605a9487A1CA7
+	--htlc-addr=0x3246D84c930794cDFAABBab954BAc58A7c08b4cd
 ```
 
 
