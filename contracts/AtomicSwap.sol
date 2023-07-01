@@ -1,6 +1,8 @@
 //SPDX-License-Identifier: BSL-1.1
 pragma solidity ^0.8.19;
 
+// import "hardhat/console.sol";
+
 // HTLC EVM contract, initial version comes from:
 // https://github.com/confio/eth-atomic-swap/blob/master/contracts/AtomicSwapEther.sol
 contract AtomicSwapEther {
@@ -17,6 +19,7 @@ contract AtomicSwapEther {
         uint16  feeBPS;        // service fee ratio (in BPS)
         uint256 minSwapAmt;    //
         uint256 maxSwapAmt;    //
+        uint256 stakedValue;   // to prevent spam bots
         address statusChecker; // the one who can set unavailable status
         bool    unavailable;   // 
     }
@@ -36,6 +39,11 @@ contract AtomicSwapEther {
     // Swap states
     enum States { INVALID, OPEN, CLOSED, EXPIRED }
 
+
+    uint immutable public MIN_STAKED_VALUE;
+    uint immutable public MIN_RETIRE_DELAY;
+
+
     // All swaps
     mapping (bytes32 => Swap) public swaps; // secretLock => Swap
     bytes32[] public secretLocks;
@@ -44,6 +52,11 @@ contract AtomicSwapEther {
     mapping (address => MarketMaker) public marketMakers;
     address[] public marketMakerAddrs;
 
+
+    constructor (uint256 minStakedValue, uint256 minRetireDelay) {
+        MIN_STAKED_VALUE = minStakedValue;
+        MIN_RETIRE_DELAY = minRetireDelay;
+    }
 
     // Events
     event Open(address indexed _depositTrader,
@@ -57,6 +70,18 @@ contract AtomicSwapEther {
     event Expire(bytes32 indexed _secretLock);
     event Close(bytes32 indexed _secretLock, bytes32 indexed _secretKey);
 
+    function getMarketMakers(uint256 fromIdx, uint256 count
+            ) public view returns (MarketMaker[] memory list) {
+
+        list = new MarketMaker[](count);
+        for (uint i = 0; i < count; i++) {
+            address key = marketMakerAddrs[fromIdx + i];
+            MarketMaker memory mm = marketMakers[key];
+            list[i] = mm;
+        }
+        return list;
+    }
+
     function registerMarketMaker(bytes32 _intro,
                                  bytes20 _bchPkh,
                                  uint16  _bchLockTime,
@@ -65,13 +90,15 @@ contract AtomicSwapEther {
                                  uint16  _feeBPS,
                                  uint256 _minSwapAmt,
                                  uint256 _maxSwapAmt,
-                                 address _statusChecker) public {
+                                 address _statusChecker) public payable {
         require(marketMakers[msg.sender].addr == address(0x0), 'registered-address');
         require(_penaltyBPS < 10000, 'invalid-penalty-bps');
         require(_feeBPS < 10000, 'invalid-fee-bps');
         require(_maxSwapAmt > _minSwapAmt, 'invalid-swap-amt');
+        require(msg.value >= MIN_STAKED_VALUE, 'not-enough-staked-val');
         marketMakers[msg.sender] = MarketMaker(msg.sender, 0, _intro, _bchPkh,
-            _bchLockTime, _sbchLockTime, _penaltyBPS, _feeBPS, _minSwapAmt, _maxSwapAmt, _statusChecker, false);
+            _bchLockTime, _sbchLockTime, _penaltyBPS, _feeBPS, _minSwapAmt, _maxSwapAmt, msg.value,
+            _statusChecker, false);
         marketMakerAddrs.push(msg.sender);
     }
 
@@ -85,6 +112,7 @@ contract AtomicSwapEther {
         MarketMaker storage mm = marketMakers[msg.sender];
         require(mm.addr != address(0x0), 'not-registered');
         require(mm.retiredAt == 0, 'already-set-retire-time');
+        require(_delay >= MIN_RETIRE_DELAY, 'delay-too-short');
         mm.retiredAt = uint64(block.timestamp + _delay);
     }
 
@@ -93,6 +121,16 @@ contract AtomicSwapEther {
         require(mm.addr != address(0x0), 'not-registered');
         require(mm.statusChecker == msg.sender, 'not-status-checker');
         mm.unavailable = b;
+    }
+
+    function withdrawStakedValue() public {
+        MarketMaker storage mm = marketMakers[msg.sender];
+        require(mm.addr != address(0x0), 'not-registered');
+        require(mm.retiredAt > 0 && mm.retiredAt < block.timestamp, 'not-retired');
+        require(mm.stakedValue > 0, 'nothing-to-withdraw');
+        uint val = mm.stakedValue;
+        mm.stakedValue = 0;
+        payable(msg.sender).transfer(val);
     }
 
     // lock value

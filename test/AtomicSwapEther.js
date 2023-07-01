@@ -7,6 +7,10 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
 describe("HTLC", function () {
+
+  const minStakedValue = 1234567890;
+  const minRetireDelay = 12 * 3600;
+
   // We define a fixture to reuse the same setup in every test.
   // We use loadFixture to run this setup once, snapshot that state,
   // and reset Hardhat Network to that snapshot in every test.
@@ -15,14 +19,16 @@ describe("HTLC", function () {
     const [owner, bot1, bot2, user1, user2, statusChecker1, statusChecker2] = await ethers.getSigners();
 
     const HTLC = await ethers.getContractFactory("AtomicSwapEther");
-    const htlc = await HTLC.deploy();
+    const htlc = await HTLC.deploy(minStakedValue, minRetireDelay);
 
     return { htlc, owner, bot1, bot2, user1, user2, statusChecker1, statusChecker2 };
   }
 
   // test data
   const intro1        = ethers.utils.formatBytes32String('bot1');
-  const intro2        = ethers.utils.formatBytes32String('bot1');
+  const intro2        = ethers.utils.formatBytes32String('bot2');
+  const intro3        = ethers.utils.formatBytes32String('bot3');
+  const intro4        = ethers.utils.formatBytes32String('bot4');
   const pkh1          = '0x4d027fdd0585302264922bed58b8a84d38776ccb';
   const pkh2          = '0xa47165ef477c99a53cdeb846a7687a069d7df27c';
   const bchLockTime1  = 12 * 6;
@@ -45,36 +51,45 @@ describe("HTLC", function () {
 
   describe("MarketMaker", function () {
 
-    it("registerMarketMaker", async function () {
-      const { htlc, bot1, bot2, statusChecker1, statusChecker2  } = await loadFixture(deployFixture);
+    it("registerMarketMaker: errors", async function () {
+      const { htlc, bot1, bot2, statusChecker1, statusChecker2 } = await loadFixture(deployFixture);
 
-      await expect(htlc.registerMarketMaker(intro1, pkh1, bchLockTime1, sbchLockTime1, 10000, feeBPS1, minSwapAmt1, maxSwapAmt1, statusChecker1.address))
+      await expect(htlc.registerMarketMaker(intro1, pkh1, bchLockTime1, sbchLockTime1, 10000, feeBPS1, minSwapAmt1, maxSwapAmt1, statusChecker1.address, {value: minStakedValue}))
         .to.be.revertedWith("invalid-penalty-bps");
-      await expect(htlc.registerMarketMaker(intro1, pkh1, bchLockTime1, sbchLockTime1, penaltyBPS1, 10000, minSwapAmt1, maxSwapAmt1, statusChecker1.address))
+      await expect(htlc.registerMarketMaker(intro1, pkh1, bchLockTime1, sbchLockTime1, penaltyBPS1, 10000, minSwapAmt1, maxSwapAmt1, statusChecker1.address, {value: minStakedValue}))
         .to.be.revertedWith("invalid-fee-bps");
-      await expect(htlc.registerMarketMaker(intro1, pkh1, bchLockTime1, sbchLockTime1, penaltyBPS1, feeBPS1, maxSwapAmt1, minSwapAmt1, statusChecker1.address))
+      await expect(htlc.registerMarketMaker(intro1, pkh1, bchLockTime1, sbchLockTime1, penaltyBPS1, feeBPS1, maxSwapAmt1, minSwapAmt1, statusChecker1.address, {value: minStakedValue}))
         .to.be.revertedWith("invalid-swap-amt");
+      await expect(htlc.registerMarketMaker(intro1, pkh1, bchLockTime1, sbchLockTime1, penaltyBPS1, feeBPS1, minSwapAmt1, maxSwapAmt1, statusChecker1.address, {value: minStakedValue-1}))
+        .to.be.revertedWith("not-enough-staked-val");
 
-      await htlc.connect(bot1).registerMarketMaker(intro1, pkh1, bchLockTime1, sbchLockTime1, penaltyBPS1, feeBPS1, minSwapAmt1, maxSwapAmt1, statusChecker1.address);
-      await expect(htlc.connect(bot1).registerMarketMaker(intro1, pkh1, bchLockTime1, sbchLockTime1, penaltyBPS1, feeBPS1, minSwapAmt1, maxSwapAmt1, statusChecker1.address))
+      await htlc.connect(bot1).registerMarketMaker(intro1, pkh1, bchLockTime1, sbchLockTime1, penaltyBPS1, feeBPS1, minSwapAmt1, maxSwapAmt1, statusChecker1.address, {value: minStakedValue});
+      await expect(htlc.connect(bot1).registerMarketMaker(intro1, pkh1, bchLockTime1, sbchLockTime1, penaltyBPS1, feeBPS1, minSwapAmt1, maxSwapAmt1, statusChecker1.address, {value: minStakedValue}))
         .to.be.revertedWith("registered-address");
+    });
 
-      await htlc.connect(bot2).registerMarketMaker(intro2, pkh2, bchLockTime1*2, sbchLockTime1*2, penaltyBPS1*2, feeBPS1*2, minSwapAmt1.mul(2), maxSwapAmt1.mul(2), statusChecker2.address);
-      
+    it("registerMarketMaker: ok", async function () {
+      const { htlc, bot1, bot2, statusChecker1, statusChecker2 } = await loadFixture(deployFixture);
+
+      await expect(htlc.connect(bot1).registerMarketMaker(intro1, pkh1, bchLockTime1, sbchLockTime1, penaltyBPS1, feeBPS1, minSwapAmt1, maxSwapAmt1, statusChecker1.address, {value: minStakedValue+1}))
+        .to.changeEtherBalances([bot1.address, htlc.address], [-minStakedValue-1, minStakedValue+1]);
+      await expect(htlc.connect(bot2).registerMarketMaker(intro2, pkh2, bchLockTime1*2, sbchLockTime1*2, penaltyBPS1*2, feeBPS1*2, minSwapAmt1.mul(2), maxSwapAmt1.mul(2), statusChecker2.address, {value: minStakedValue+2}))
+        .to.changeEtherBalances([bot2.address, htlc.address], [-minStakedValue-2, minStakedValue+2]);
+
       expect(await htlc.marketMakers(bot1.address)).to.deep.equal([
-        bot1.address, 0, intro1, pkh1, bchLockTime1, sbchLockTime1, penaltyBPS1, feeBPS1, minSwapAmt1, maxSwapAmt1, statusChecker1.address, false]);
+        bot1.address, 0, intro1, pkh1, bchLockTime1, sbchLockTime1, penaltyBPS1, feeBPS1, minSwapAmt1, maxSwapAmt1, minStakedValue+1, statusChecker1.address, false]);
       expect(await htlc.marketMakers(bot2.address)).to.deep.equal([
-        bot2.address, 0, intro2, pkh2, bchLockTime1*2, sbchLockTime1*2, penaltyBPS1*2, feeBPS1*2, minSwapAmt1.mul(2), maxSwapAmt1.mul(2), statusChecker2.address, false]);
+        bot2.address, 0, intro2, pkh2, bchLockTime1*2, sbchLockTime1*2, penaltyBPS1*2, feeBPS1*2, minSwapAmt1.mul(2), maxSwapAmt1.mul(2), minStakedValue+2, statusChecker2.address, false]);
     });
 
     it("updateMarketMaker", async function () {
       const { htlc, bot1, bot2, statusChecker1 } = await loadFixture(deployFixture);
 
-      await htlc.connect(bot1).registerMarketMaker(intro1, pkh1, bchLockTime1, sbchLockTime1, penaltyBPS1, feeBPS1, minSwapAmt1, maxSwapAmt1, statusChecker1.address);
+      await htlc.connect(bot1).registerMarketMaker(intro1, pkh1, bchLockTime1, sbchLockTime1, penaltyBPS1, feeBPS1, minSwapAmt1, maxSwapAmt1, statusChecker1.address, {value: minStakedValue});
       expect(await htlc.marketMakers(bot1.address).then(x => x.intro)).to.equal(intro1);
 
       await htlc.connect(bot1).updateMarketMaker(intro2);
-      expect(await htlc.marketMakers(bot1.address).then(x => x.intro)).to.equal(intro1);
+      expect(await htlc.marketMakers(bot1.address).then(x => x.intro)).to.equal(intro2);
 
       await expect(htlc.connect(bot2).updateMarketMaker(intro1))
         .to.be.revertedWith("not-registered");
@@ -82,13 +97,30 @@ describe("HTLC", function () {
         .to.be.revertedWith("not-registered");
     });
 
+    it("setUnavailable", async function () {
+      const { htlc, bot1, bot2, statusChecker1, statusChecker2 } = await loadFixture(deployFixture);
+      await expect(htlc.setUnavailable(bot1.address, true))
+        .to.be.revertedWith("not-registered");
+
+      await htlc.connect(bot1).registerMarketMaker(intro1, pkh1, bchLockTime1, sbchLockTime1, penaltyBPS1, feeBPS1, minSwapAmt1, maxSwapAmt1, statusChecker1.address, {value: minStakedValue});
+      await expect(htlc.connect(statusChecker2).setUnavailable(bot1.address, true))
+      .to.be.revertedWith("not-status-checker");
+
+      expect(await htlc.marketMakers(bot1.address).then(x => x.unavailable)).to.equal(false);
+      await htlc.connect(statusChecker1).setUnavailable(bot1.address, true)
+      expect(await htlc.marketMakers(bot1.address).then(x => x.unavailable)).to.equal(true);
+    });
+
     it("retireMarketMaker", async function () {
       const { htlc, bot1, bot2, statusChecker1 } = await loadFixture(deployFixture);
 
-      await htlc.connect(bot1).registerMarketMaker(intro1, pkh1, bchLockTime1, sbchLockTime1, penaltyBPS1, feeBPS1, minSwapAmt1, maxSwapAmt1, statusChecker1.address);
+      await htlc.connect(bot1).registerMarketMaker(intro1, pkh1, bchLockTime1, sbchLockTime1, penaltyBPS1, feeBPS1, minSwapAmt1, maxSwapAmt1, statusChecker1.address, {value: minStakedValue});
       expect(await htlc.marketMakers(bot1.address).then(x => x.retiredAt)).to.equal(0);
 
-      await htlc.connect(bot1).retireMarketMaker(24 * 3600);
+      await expect(htlc.connect(bot1).retireMarketMaker(10 * 3600))
+        .to.be.revertedWith("delay-too-short");
+
+      await htlc.connect(bot1).retireMarketMaker(12 * 3600);
       expect(await htlc.marketMakers(bot1.address).then(x => x.retiredAt)).to.gt(0);
 
       await expect(htlc.connect(bot2).retireMarketMaker(123))
@@ -99,19 +131,50 @@ describe("HTLC", function () {
         .to.be.revertedWith("already-set-retire-time");
     });
 
-    it("setUnavailable", async function () {
-      const { htlc, bot1, bot2, statusChecker1, statusChecker2 } = await loadFixture(deployFixture);
-      await expect(htlc.setUnavailable(bot1.address, true))
+    it("withdrawStakedValue", async function () {
+      const { htlc, bot1, bot2, statusChecker1 } = await loadFixture(deployFixture);
+
+      await expect(htlc.connect(bot1).withdrawStakedValue())
         .to.be.revertedWith("not-registered");
 
-      await htlc.connect(bot1).registerMarketMaker(intro1, pkh1, bchLockTime1, sbchLockTime1, penaltyBPS1, feeBPS1, minSwapAmt1, maxSwapAmt1, statusChecker1.address);
-      await expect(htlc.connect(statusChecker2).setUnavailable(bot1.address, true))
-      .to.be.revertedWith("not-status-checker");
+      await htlc.connect(bot1).registerMarketMaker(intro1, pkh1, bchLockTime1, sbchLockTime1, penaltyBPS1, feeBPS1, minSwapAmt1, maxSwapAmt1, statusChecker1.address, {value: minStakedValue*2});
+      await expect(htlc.connect(bot1).withdrawStakedValue())
+        .to.be.revertedWith("not-retired");
 
-      expect(await htlc.marketMakers(bot1.address).then(x => x.unavailable)).to.equal(false);
-      await htlc.connect(statusChecker1).setUnavailable(bot1.address, true)
-      expect(await htlc.marketMakers(bot1.address).then(x => x.unavailable)).to.equal(true);
+      await htlc.connect(bot1).retireMarketMaker(24 * 3600);
+      await expect(htlc.connect(bot1).withdrawStakedValue())
+        .to.be.revertedWith("not-retired");
+
+      await time.increase(12 * 3600);
+      await expect(htlc.connect(bot1).withdrawStakedValue())
+        .to.be.revertedWith("not-retired");
+
+      await time.increase(12 * 3600);
+      await expect(htlc.connect(bot1).withdrawStakedValue())
+        .to.changeEtherBalances([bot1.address, htlc.address], [minStakedValue*2, -minStakedValue*2]);
+
+      await expect(htlc.connect(bot1).withdrawStakedValue())
+        .to.be.revertedWith("nothing-to-withdraw");
     });
+
+    it("getMarketMakers", async function() {
+      const { htlc, bot1, bot2, user1, user2, statusChecker1 } = await loadFixture(deployFixture);
+
+      await htlc.connect(bot1).registerMarketMaker(intro1, pkh1, bchLockTime1, sbchLockTime1, penaltyBPS1, feeBPS1, minSwapAmt1, maxSwapAmt1, statusChecker1.address, {value: minStakedValue+1});
+      await htlc.connect(bot2).registerMarketMaker(intro2, pkh1, bchLockTime1, sbchLockTime1, penaltyBPS1, feeBPS1, minSwapAmt1, maxSwapAmt1, statusChecker1.address, {value: minStakedValue+2});
+      await htlc.connect(user1).registerMarketMaker(intro3, pkh1, bchLockTime1, sbchLockTime1, penaltyBPS1, feeBPS1, minSwapAmt1, maxSwapAmt1, statusChecker1.address, {value: minStakedValue+3});
+      await htlc.connect(user2).registerMarketMaker(intro4, pkh1, bchLockTime1, sbchLockTime1, penaltyBPS1, feeBPS1, minSwapAmt1, maxSwapAmt1, statusChecker1.address, {value: minStakedValue+4});
+
+      expect((await htlc.getMarketMakers(0, 4)).map(x => x.intro))
+        .to.deep.equal([intro1, intro2, intro3, intro4]);
+      expect((await htlc.getMarketMakers(0, 3)).map(x => x.intro))
+        .to.deep.equal([intro1, intro2, intro3]);
+      expect((await htlc.getMarketMakers(1, 2)).map(x => x.intro))
+        .to.deep.equal([intro2, intro3]);
+      expect((await htlc.getMarketMakers(1, 3)).map(x => x.intro))
+        .to.deep.equal([intro2, intro3, intro4]);
+    });
+
   });
 
   describe("AtomicSwap", function () {
@@ -119,9 +182,10 @@ describe("HTLC", function () {
     it("open: errors", async function () {
       const { htlc, bot1, bot2, user1, user2, statusChecker1, statusChecker2 } = await loadFixture(deployFixture);
 
-      await htlc.connect(bot1).registerMarketMaker(intro1, pkh1, bchLockTime1, sbchLockTime1, penaltyBPS1, feeBPS1, minSwapAmt1, maxSwapAmt1, statusChecker1.address);
-      await htlc.connect(bot2).registerMarketMaker(intro2, pkh2, bchLockTime1, sbchLockTime1, penaltyBPS1, feeBPS1, minSwapAmt1, maxSwapAmt1, statusChecker2.address);
-      await htlc.connect(bot2).retireMarketMaker(0);
+      await htlc.connect(bot1).registerMarketMaker(intro1, pkh1, bchLockTime1, sbchLockTime1, penaltyBPS1, feeBPS1, minSwapAmt1, maxSwapAmt1, statusChecker1.address, {value: minStakedValue});
+      await htlc.connect(bot2).registerMarketMaker(intro2, pkh2, bchLockTime1, sbchLockTime1, penaltyBPS1, feeBPS1, minSwapAmt1, maxSwapAmt1, statusChecker2.address, {value: minStakedValue});
+      await htlc.connect(bot2).retireMarketMaker(minRetireDelay+1);
+      await time.increase(minRetireDelay+1);
 
       await expect(htlc.connect(user1).open(bot1.address, secretLock1, sbchLockTime1/2, pkh1, penaltyBPS1))
         .to.be.revertedWith("sbch-lock-time-mismatch");
