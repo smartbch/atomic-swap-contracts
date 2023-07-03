@@ -1,11 +1,13 @@
 //SPDX-License-Identifier: BSL-1.1
 pragma solidity ^0.8.19;
 
+import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 // import "hardhat/console.sol";
 
 // HTLC EVM contract, initial version comes from:
 // https://github.com/confio/eth-atomic-swap/blob/master/contracts/AtomicSwapEther.sol
 contract AtomicSwapEther {
+    using EnumerableSet for EnumerableSet.AddressSet;
 
     // Market maker info
     struct MarketMaker {
@@ -46,11 +48,10 @@ contract AtomicSwapEther {
 
     // All swaps
     mapping (bytes32 => Swap) public swaps; // secretLock => Swap
-    bytes32[] public secretLocks;
 
     // Market maker registry
     mapping (address => MarketMaker) public marketMakers;
-    address[] public marketMakerAddrs;
+    EnumerableSet.AddressSet private marketMakerAddrs;
 
 
     constructor (uint256 minStakedValue, uint256 minRetireDelay) {
@@ -73,9 +74,19 @@ contract AtomicSwapEther {
     function getMarketMakers(uint256 fromIdx, uint256 count
             ) public view returns (MarketMaker[] memory list) {
 
+        uint n = marketMakerAddrs.length();
+        if (fromIdx >= n) {
+            return list;
+        }
+
+        uint left = n - fromIdx;
+        if (count > left) {
+            count = left;
+        }
+
         list = new MarketMaker[](count);
         for (uint i = 0; i < count; i++) {
-            address key = marketMakerAddrs[fromIdx + i];
+            address key = marketMakerAddrs.at(fromIdx + i);
             MarketMaker memory mm = marketMakers[key];
             list[i] = mm;
         }
@@ -99,7 +110,7 @@ contract AtomicSwapEther {
         marketMakers[msg.sender] = MarketMaker(msg.sender, 0, _intro, _bchPkh,
             _bchLockTime, _sbchLockTime, _penaltyBPS, _feeBPS, _minSwapAmt, _maxSwapAmt, msg.value,
             _statusChecker, false);
-        marketMakerAddrs.push(msg.sender);
+        marketMakerAddrs.add(msg.sender);
     }
 
     function updateMarketMaker(bytes32 _intro) public {
@@ -131,6 +142,7 @@ contract AtomicSwapEther {
         uint val = mm.stakedValue;
         mm.stakedValue = 0;
         payable(msg.sender).transfer(val);
+        marketMakerAddrs.remove(msg.sender);
     }
 
     // lock value
@@ -166,7 +178,6 @@ contract AtomicSwapEther {
             state         : States.OPEN
         });
         swaps[_secretLock] = swap;
-        secretLocks.push(_secretLock);
 
         // Trigger open event.
         emit Open(msg.sender, _withdrawTrader, _secretLock, _unlockTime, msg.value,

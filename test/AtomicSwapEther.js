@@ -165,6 +165,12 @@ describe("HTLC", function () {
       await htlc.connect(user1).registerMarketMaker(intro3, pkh1, bchLockTime1, sbchLockTime1, penaltyBPS1, feeBPS1, minSwapAmt1, maxSwapAmt1, statusChecker1.address, {value: minStakedValue+3});
       await htlc.connect(user2).registerMarketMaker(intro4, pkh1, bchLockTime1, sbchLockTime1, penaltyBPS1, feeBPS1, minSwapAmt1, maxSwapAmt1, statusChecker1.address, {value: minStakedValue+4});
 
+      expect((await htlc.getMarketMakers(100, 200)).map(x => x.intro))
+        .to.deep.equal([]);
+      expect((await htlc.getMarketMakers(0, 100)).map(x => x.intro))
+        .to.deep.equal([intro1, intro2, intro3, intro4]);
+      expect((await htlc.getMarketMakers(1, 100)).map(x => x.intro))
+        .to.deep.equal([intro2, intro3, intro4]);
       expect((await htlc.getMarketMakers(0, 4)).map(x => x.intro))
         .to.deep.equal([intro1, intro2, intro3, intro4]);
       expect((await htlc.getMarketMakers(0, 3)).map(x => x.intro))
@@ -173,6 +179,12 @@ describe("HTLC", function () {
         .to.deep.equal([intro2, intro3]);
       expect((await htlc.getMarketMakers(1, 3)).map(x => x.intro))
         .to.deep.equal([intro2, intro3, intro4]);
+
+      await htlc.connect(bot2).retireMarketMaker(minRetireDelay);
+      await time.increase(minRetireDelay);
+      await htlc.connect(bot2).withdrawStakedValue();
+      expect((await htlc.getMarketMakers(0, 4)).map(x => x.intro))
+        .to.deep.equal([intro1, intro4, intro3]);
     });
 
   });
@@ -224,8 +236,8 @@ describe("HTLC", function () {
         .to.changeEtherBalances([user2.address, htlc.address], [-amt2, amt2])
         .to.emit(htlc, "Open").withArgs(user2.address, user1.address, secretLock2, anyValue, amt2, pkh2, anyValue, penaltyBPS1);
 
-      expect(await htlc.secretLocks(0)).to.equal(secretLock1);
-      expect(await htlc.secretLocks(1)).to.equal(secretLock2);
+      // expect(await htlc.secretLocks(0)).to.equal(secretLock1);
+      // expect(await htlc.secretLocks(1)).to.equal(secretLock2);
 
       const swap0 = await htlc.swaps(secretLock1);
     //expect(swap0.timelock).to.equal(0);
