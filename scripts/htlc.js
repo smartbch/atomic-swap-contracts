@@ -23,12 +23,14 @@ yargs(process.argv.slice(2))
             .option('min-swap-amt',   { required: true, type: 'string', description: "min amount of swap (in Ethers)"})
             .option('max-swap-amt',   { required: true, type: 'string', description: "max amount of swap (in Ethers)"})
             .option('status-checker', { required: true, type: 'string', description: "status checker" })
+            .option('staked-val',     { required: true, type: 'string', description: "staked value" })
             ;
     }, async (argv) => {
         await registerBot(argv.signer, argv.htlcAddr, argv.intro, argv.pkh, 
             argv.bchLockTime, argv.sbchLockTime, argv.penaltyBps, argv.feeBps,
             ethers.utils.parseEther(argv.minSwapAmt),
             ethers.utils.parseEther(argv.maxSwapAmt), 
+            ethers.utils.parseEther(argv.stakedVal), 
             argv.statusChecker);
     })
     .command('lock', 'lock sbch', (yargs) => {
@@ -131,7 +133,8 @@ async function query(htlcAddr) {
 }
 
 async function registerBot(signerIdx, htlcAddr, intro, pkh, 
-        bchLockTime, sbchLockTime, penaltyBPS, feeBPS, minSwapAmt, maxSwapAmt, statusChecker) {
+        bchLockTime, sbchLockTime, penaltyBPS, feeBPS, minSwapAmt, maxSwapAmt, stakedVal,
+        statusChecker) {
 
     console.log('register bot ...');
     const [signer, htlc] = await getHTLC(signerIdx, htlcAddr);
@@ -139,7 +142,8 @@ async function registerBot(signerIdx, htlcAddr, intro, pkh,
 
     const botIntro = ethers.utils.formatBytes32String(intro);
     const tx = await htlc.registerMarketMaker(botIntro, pkh,
-        bchLockTime, sbchLockTime, penaltyBPS, feeBPS, minSwapAmt, maxSwapAmt, statusChecker);
+        bchLockTime, sbchLockTime, penaltyBPS, feeBPS, minSwapAmt, maxSwapAmt, statusChecker,
+        {value: stakedVal});
     console.log('tx:', tx);
     console.log('result:', await tx.wait());
 }

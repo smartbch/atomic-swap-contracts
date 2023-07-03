@@ -11,8 +11,11 @@ async function main() {
   const [ deployer ] = await ethers.getSigners();
   console.log('deployer:', deployer.address);
 
+  const minStakedValue = ethers.utils.parseUnits('0.1');
+  const minRetireDelay = 2 * 3600;
+
   const HTLC = await ethers.getContractFactory("AtomicSwapEther");
-  const htlc = await HTLC.deploy();
+  const htlc = await HTLC.deploy(minStakedValue, minRetireDelay);
   await htlc.deployed();
   console.log(`HTLC deployed to ${htlc.address}`);
 }

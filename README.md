@@ -90,6 +90,7 @@ HARDHAT_NETWORK=sbch_testnet node ./scripts/htlc.js register-bot \
 	--fee-bps=100 \
 	--min-swap-amt=0.1 \
 	--max-swap-amt=1.0 \
+	--staked-val=0.2 \
 	--status-checker=0x4d027fdd0585302264922bed58b8a84d38776ccb
 ```
 
