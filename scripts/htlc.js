@@ -74,17 +74,24 @@ async function query(htlcAddr) {
         for (let i = 0; ; i++) {
             process.stdout.write(".");
             try {
-                const botAddr = await htlc.marketMakerAddrs(i);
-                const botInfo = await htlc.marketMakers(botAddr);
+                // const botAddr = await htlc.marketMakerAddrs(i);
+                const mms = await htlc.getMarketMakers(i, 1);
+                if (mms.length == 0) {
+                    break;
+                }
+
+                const botInfo = mms[0];
                 // console.log(botInfo);
                 bots.push({
-                    addr: botInfo.addr,
-                    intro: ethers.utils.parseBytes32String(botInfo.intro),
-                    bchPkh: botInfo.bchPkh,
-                    bchLockTime: botInfo.bchLockTime,
+                    addr        : botInfo.addr,
+                    intro       : ethers.utils.parseBytes32String(botInfo.intro),
+                    bchPkh      : botInfo.bchPkh,
+                    bchLockTime : botInfo.bchLockTime,
                     sbchLockTime: botInfo.sbchLockTime,
-                    penaltyBPS: botInfo.penaltyBPS,
-                    feeBPS: botInfo.feeBPS,
+                    penaltyBPS  : botInfo.penaltyBPS,
+                    feeBPS      : botInfo.feeBPS,
+                    stakedValue : ethers.utils.formatUnits(botInfo.stakedValue),
+                    retiredAt   : botInfo.retiredAt.toNumber(),
                 });
             } catch (err) {
                 // console.log(err);
