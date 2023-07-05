@@ -195,7 +195,6 @@ contract AtomicSwapEther {
         swap.state = States.CLOSED;
 
         // Transfer the ETH funds from this contract to the withdrawing trader.
-        require(swap.withdrawTrader == msg.sender, 'not-opener');
         swap.withdrawTrader.transfer(swap.value);
 
         // Trigger close event.
@@ -212,7 +211,6 @@ contract AtomicSwapEther {
         swap.state = States.EXPIRED;
 
         // Transfer the ETH value from this contract back to the ETH trader (minus penalty).
-        require(swap.ethTrader == msg.sender, 'not-closer');
         uint256 penalty = 0;
         if (swap.penaltyBPS > 0) {
           penalty = swap.value * swap.penaltyBPS / 10000;

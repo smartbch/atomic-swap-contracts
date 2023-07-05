@@ -259,8 +259,6 @@ describe("HTLC", function () {
         .to.be.revertedWith("not-open");
       await expect(htlc.close(secretLock1, secretLock2))
         .to.be.revertedWith("invalid-key");
-      await expect(htlc.close(secretLock1, secretKey1))
-        .to.be.revertedWith("not-opener");
     });
 
     it("close: ok", async function () {
@@ -269,7 +267,7 @@ describe("HTLC", function () {
       const amt = 123456789;
       await htlc.connect(user1).open(user2.address, secretLock1, sbchLockTime1, pkh1, penaltyBPS1, {value: amt});
 
-      await expect(htlc.connect(user2).close(secretLock1, secretKey1))
+      await expect(htlc.close(secretLock1, secretKey1))
         .to.changeEtherBalances([htlc.address, user2.address], [-amt, amt])
         .to.emit(htlc, "Close").withArgs(secretLock1, secretKey1);
 
@@ -287,10 +285,6 @@ describe("HTLC", function () {
         .to.be.revertedWith("not-open");
       await expect(htlc.expire(secretLock1))
         .to.be.revertedWith("not-expirable");
-
-      await time.increase(sbchLockTime1 + 10);
-      await expect(htlc.expire(secretLock1))
-        .to.be.revertedWith("not-closer");
     });
 
     it("expire: ok", async function () {
@@ -299,7 +293,7 @@ describe("HTLC", function () {
       await htlc.connect(user1).open(user2.address, secretLock1, sbchLockTime1, pkh1, 500, {value: 20000});
 
       await time.increase(sbchLockTime1 + 10);
-      await expect(htlc.connect(user1).expire(secretLock1))
+      await expect(htlc.expire(secretLock1))
         .to.changeEtherBalances([htlc.address, user1.address, user2.address], [-20000, 19000, 1000])
         .to.be.emit(htlc, "Expire").withArgs(secretLock1);
     });
