@@ -248,6 +248,11 @@ describe("HTLC", function () {
       expect(swap0.penaltyBPS).to.equal(penaltyBPS1);
       expect(swap0.secretKey).to.equal(zeroBytes32);
       expect(swap0.state).to.equal(OPEN);
+
+      expect(await htlc.getSwapState(secretLock1))
+        .to.be.equal(OPEN);
+      expect(await htlc.getSwapState(ethers.utils.sha256('0xfafafafafa')))
+        .to.be.equal(INVALID);
     });
 
     it("close: errors", async function () {
@@ -274,6 +279,9 @@ describe("HTLC", function () {
       const swap0 = await htlc.swaps(secretLock1);
       expect(swap0.secretKey).to.equal(secretKey1);
       expect(swap0.state).to.equal(CLOSED);
+
+      expect(await htlc.getSwapState(secretLock1))
+        .to.be.equal(CLOSED);
     });
 
     it("expire: errors", async function () {
@@ -296,6 +304,13 @@ describe("HTLC", function () {
       await expect(htlc.expire(secretLock1))
         .to.changeEtherBalances([htlc.address, user1.address, user2.address], [-20000, 19000, 1000])
         .to.be.emit(htlc, "Expire").withArgs(secretLock1);
+
+      expect(await htlc.getSwapState(secretLock1))
+        .to.be.equal(EXPIRED);
+
+      // print Expire event
+      // const logs = await htlc.provider.getLogs({address: htlc.address});
+      // console.log(JSON.stringify(logs, null, '  '));
     });
 
   });

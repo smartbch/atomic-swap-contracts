@@ -71,6 +71,10 @@ contract AtomicSwapEther {
     event Expire(bytes32 indexed _secretLock);
     event Close(bytes32 indexed _secretLock, bytes32 indexed _secretKey);
 
+    function getSwapState(bytes32 secretLock) public view returns (States) {
+        return swaps[secretLock].state;
+    }
+
     function getMarketMakers(uint256 fromIdx, uint256 count
             ) public view returns (MarketMaker[] memory list) {
 
