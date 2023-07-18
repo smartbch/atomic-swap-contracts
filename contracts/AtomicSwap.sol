@@ -100,17 +100,20 @@ contract AtomicSwapEther {
     function registerMarketMaker(bytes32 _intro,
                                  bytes20 _bchPkh,
                                  uint16  _bchLockTime,
-                                 uint32  _sbchLockTime,
                                  uint16  _penaltyBPS,
                                  uint16  _feeBPS,
                                  uint256 _minSwapAmt,
                                  uint256 _maxSwapAmt,
                                  address _statusChecker) public payable {
         require(marketMakers[msg.sender].addr == address(0x0), 'registered-address');
+        require(_bchLockTime > 0, 'zero-bch-lock-time');
         require(_penaltyBPS < 10000, 'invalid-penalty-bps');
         require(_feeBPS < 10000, 'invalid-fee-bps');
         require(_maxSwapAmt > _minSwapAmt, 'invalid-swap-amt');
         require(msg.value >= MIN_STAKED_VALUE, 'not-enough-staked-val');
+
+        // console.log('_bchLockTime: %d', _bchLockTime);
+        uint32 _sbchLockTime = uint32(_bchLockTime) * 10 * 60;
         marketMakers[msg.sender] = MarketMaker(msg.sender, 0, _intro, _bchPkh,
             _bchLockTime, _sbchLockTime, _penaltyBPS, _feeBPS, _minSwapAmt, _maxSwapAmt, msg.value,
             _statusChecker, false);

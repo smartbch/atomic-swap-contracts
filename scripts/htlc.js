@@ -17,7 +17,6 @@ yargs(process.argv.slice(2))
             .option('intro',          { required: true, type: 'string', description: "bot's intro" })
             .option('pkh',            { required: true, type: 'string', description: 'bot public key hash (hex)' })
             .option('bch-lock-time',  { required: true, type: 'number', description: "BCH HTLC lock-time (in blocks)" })
-            .option('sbch-lock-time', { required: true, type: 'number', description: "sBCH HTLC lock-time (in seconds)" })
             .option('penalty-bps',    { required: true, type: 'number', description: 'penalty ratio of HTLC refund (in BPS)'})
             .option('fee-bps',        { required: true, type: 'number', description: 'service fee ratio (in BPS)' })
             .option('min-swap-amt',   { required: true, type: 'string', description: "min amount of swap (in Ethers)"})
@@ -27,7 +26,7 @@ yargs(process.argv.slice(2))
             ;
     }, async (argv) => {
         await registerBot(argv.signer, argv.htlcAddr, argv.intro, argv.pkh, 
-            argv.bchLockTime, argv.sbchLockTime, argv.penaltyBps, argv.feeBps,
+            argv.bchLockTime, argv.penaltyBps, argv.feeBps,
             ethers.utils.parseEther(argv.minSwapAmt),
             ethers.utils.parseEther(argv.maxSwapAmt), 
             ethers.utils.parseEther(argv.stakedVal), 
@@ -140,7 +139,7 @@ async function query(htlcAddr) {
 }
 
 async function registerBot(signerIdx, htlcAddr, intro, pkh, 
-        bchLockTime, sbchLockTime, penaltyBPS, feeBPS, minSwapAmt, maxSwapAmt, stakedVal,
+        bchLockTime, penaltyBPS, feeBPS, minSwapAmt, maxSwapAmt, stakedVal,
         statusChecker) {
 
     console.log('register bot ...');
@@ -149,7 +148,7 @@ async function registerBot(signerIdx, htlcAddr, intro, pkh,
 
     const botIntro = ethers.utils.formatBytes32String(intro);
     const tx = await htlc.registerMarketMaker(botIntro, pkh,
-        bchLockTime, sbchLockTime, penaltyBPS, feeBPS, minSwapAmt, maxSwapAmt, statusChecker,
+        bchLockTime, penaltyBPS, feeBPS, minSwapAmt, maxSwapAmt, statusChecker,
         {value: stakedVal});
     console.log('tx:', tx);
     console.log('result:', await tx.wait());
