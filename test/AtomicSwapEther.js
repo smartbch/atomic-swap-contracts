@@ -208,6 +208,11 @@ describe("HTLC", function () {
       await htlc.connect(bot2).retireMarketMaker(minRetireDelay+1);
       await time.increase(minRetireDelay+1);
 
+      await expect(htlc.connect(user1).lock(user2.address, secretLock2, sbchLockTime1, pkh2, penaltyBPS1, true))
+        .to.be.revertedWith("receiver-not-mm");
+      await expect(htlc.connect(user1).lock(bot1.address, secretLock2, sbchLockTime1, pkh2, penaltyBPS1, false))
+        .to.be.revertedWith("receiver-is-mm");
+
       await expect(htlc.connect(user1).lock(bot1.address, secretLock1, sbchLockTime1/2, pkh1, penaltyBPS1, true))
         .to.be.revertedWith("sbch-lock-time-mismatch");
       await expect(htlc.connect(user1).lock(bot1.address, secretLock1, sbchLockTime1, pkh1, penaltyBPS1/2, true))
@@ -273,6 +278,11 @@ describe("HTLC", function () {
         .to.be.revertedWith("not-locked");
       await expect(htlc.unlock(secretLock1, secretLock2))
         .to.be.revertedWith("invalid-key");
+
+      // chain halted
+      await time.increase(sbchLockTime1 + 10);
+      await expect(htlc.unlock(secretLock1, secretKey1))
+        .to.be.revertedWith("no-unlock-when-chain-halted");
     });
 
     it("unlock: ok", async function () {
@@ -300,6 +310,11 @@ describe("HTLC", function () {
 
       await expect(htlc.refund(secretLock2))
         .to.be.revertedWith("not-locked");
+      await expect(htlc.refund(secretLock1))
+        .to.be.revertedWith("not-refundable");
+
+      // chain halted
+      await time.increase(sbchLockTime1 + 10);
       await expect(htlc.refund(secretLock1))
         .to.be.revertedWith("not-refundable");
     });

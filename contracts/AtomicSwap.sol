@@ -169,14 +169,14 @@ contract AtomicSwapEther {
 
         MarketMaker storage mm = marketMakers[_receiver];
         if (_receiverIsMM) {
-            require(mm.addr != address(0x0), 'withrawer-not-mm');
+            require(mm.addr != address(0x0), 'receiver-not-mm');
             require(_validPeriod == mm.sbchLockTime, 'sbch-lock-time-mismatch');
             require(_penaltyBPS == mm.penaltyBPS, 'penalty-bps-mismatch');
             require(msg.value >= mm.minSwapAmt && msg.value <= mm.maxSwapAmt, 'value-out-of-range');
             require(mm.retiredAt == 0 || mm.retiredAt > block.timestamp, 'market-maker-retired');
             require(!mm.unavailable, 'unavailable');
         } else {
-            require(mm.addr == address(0x0), 'withrawer-is-mm');
+            require(mm.addr == address(0x0), 'receiver-is-mm');
             require(_penaltyBPS < 10000, 'invalid-penalty-bps');
         }
 
