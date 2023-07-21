@@ -28,7 +28,7 @@ contract AtomicSwapEther2 {
 
     // Swap info
     struct Swap {
-        bool    forMM;                  // the locked coins will be unlocked a MarketMaker
+        bool    receiverIsMM;           // the locked coins will be unlocked a MarketMaker
         uint64  startTime;              // lock time
         uint64  startHeight;            // lock height
         uint32  validPeriod;            // valid time span (in seconds)
@@ -163,12 +163,13 @@ contract AtomicSwapEther2 {
                   bytes32 _secretLock,
                   uint256 _validPeriod,
                   bytes20 _bchWithdrawPKH,
-                  uint16  _penaltyBPS) public payable {
+                  uint16  _penaltyBPS,
+                  bool    _receiverIsMM) public payable {
         require(swaps[_secretLock].state == States.INVALID, 'used-secret-lock');
 
         MarketMaker storage mm = marketMakers[_withdrawTrader];
-        bool forMM = mm.addr != address(0x0); // lock to market maker
-        if (forMM) {
+        if (_receiverIsMM) {
+            require(mm.addr != address(0x0), 'withrawer-not-mm');
             require(_validPeriod == mm.sbchLockTime, 'sbch-lock-time-mismatch');
             require(_penaltyBPS == mm.penaltyBPS, 'penalty-bps-mismatch');
             require(msg.value >= mm.minSwapAmt && msg.value <= mm.maxSwapAmt, 'value-out-of-range');
@@ -182,7 +183,7 @@ contract AtomicSwapEther2 {
 
         // Store the details of the swap.
         Swap memory swap = Swap({
-            forMM         : forMM,
+            receiverIsMM  : _receiverIsMM,
             startTime     : uint64(block.timestamp),
             startHeight   : uint64(block.number),
             validPeriod   : uint32(_validPeriod),
@@ -206,9 +207,10 @@ contract AtomicSwapEther2 {
         Swap memory swap = swaps[_secretLock];
         require(swap.state == States.OPEN, 'not-open');
         require(_secretLock == sha256(abi.encodePacked(_secretKey)), 'invalid-key');
-	if(!swap.forMM) {
+	if(!swap.receiverIsMM) {
             uint estimatedTimeSpan = (block.number - swap.startHeight) * BLOCK_INTERVAL;
-            require(estimatedTimeSpan < block.timestamp - swap.startTime + HALT_TIME, "no-close-when-chain-halted");
+            uint realTimeSpan = block.timestamp - swap.startTime;
+            require(estimatedTimeSpan + HALT_TIME > realTimeSpan, "no-close-when-chain-halted");
 	}
 
         // Close the swap.
