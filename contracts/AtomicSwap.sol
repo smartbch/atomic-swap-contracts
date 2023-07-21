@@ -28,10 +28,13 @@ contract AtomicSwapEther {
 
     // Swap info
     struct Swap {
-        uint256 timelock;               // unlock time
-        uint256 value;                  // locked value
+        bool    receiverIsMM;           // the locked coins will be unlocked a MarketMaker
+        uint64  startTime;              // lock time
+        uint64  startHeight;            // lock height
+        uint32  validPeriod;            // valid time span (in seconds)
         address payable ethTrader;      // the locker
         address payable withdrawTrader; // the unlocker
+        uint96  value;                  // locked value
         bytes20 bchWithdrawPKH;         // BCH recipient address (P2PKH)
         uint16  penaltyBPS;             // refund penalty ratio (in BPS)
         States  state;                  //
@@ -44,6 +47,9 @@ contract AtomicSwapEther {
 
     uint immutable public MIN_STAKED_VALUE;
     uint immutable public MIN_RETIRE_DELAY;
+
+    uint constant private HALT_TIME = 1800;
+    uint32 constant private BLOCK_INTERVAL = 6;
 
 
     // All swaps
@@ -148,8 +154,8 @@ contract AtomicSwapEther {
         require(mm.stakedValue > 0, 'nothing-to-withdraw');
         uint val = mm.stakedValue;
         mm.stakedValue = 0;
-        payable(msg.sender).transfer(val);
         marketMakerAddrs.remove(msg.sender);
+        payable(msg.sender).transfer(val);
     }
 
     // lock value
@@ -157,17 +163,20 @@ contract AtomicSwapEther {
                   bytes32 _secretLock,
                   uint256 _validPeriod,
                   bytes20 _bchWithdrawPKH,
-                  uint16  _penaltyBPS) public payable {
+                  uint16  _penaltyBPS,
+                  bool    _receiverIsMM) public payable {
         require(swaps[_secretLock].state == States.INVALID, 'used-secret-lock');
 
         MarketMaker storage mm = marketMakers[_withdrawTrader];
-        if (mm.addr != address(0x0)) { // lock to market maker
+        if (_receiverIsMM) {
+            require(mm.addr != address(0x0), 'withrawer-not-mm');
             require(_validPeriod == mm.sbchLockTime, 'sbch-lock-time-mismatch');
             require(_penaltyBPS == mm.penaltyBPS, 'penalty-bps-mismatch');
             require(msg.value >= mm.minSwapAmt && msg.value <= mm.maxSwapAmt, 'value-out-of-range');
             require(mm.retiredAt == 0 || mm.retiredAt > block.timestamp, 'market-maker-retired');
             require(!mm.unavailable, 'unavailable');
         } else {
+            require(mm.addr == address(0x0), 'withrawer-is-mm');
             require(_penaltyBPS < 10000, 'invalid-penalty-bps');
         }
 
@@ -175,8 +184,11 @@ contract AtomicSwapEther {
 
         // Store the details of the swap.
         Swap memory swap = Swap({
-            timelock      : _unlockTime,
-            value         : msg.value,
+            receiverIsMM  : _receiverIsMM,
+            startTime     : uint64(block.timestamp),
+            startHeight   : uint64(block.number),
+            validPeriod   : uint32(_validPeriod),
+            value         : uint96(msg.value),
             ethTrader     : payable(msg.sender),
             withdrawTrader: _withdrawTrader,
             bchWithdrawPKH: _bchWithdrawPKH,
@@ -193,9 +205,14 @@ contract AtomicSwapEther {
 
     // unlock value
     function close(bytes32 _secretLock, bytes32 _secretKey) public {
-        Swap storage swap = swaps[_secretLock];
+        Swap memory swap = swaps[_secretLock];
         require(swap.state == States.OPEN, 'not-open');
         require(_secretLock == sha256(abi.encodePacked(_secretKey)), 'invalid-key');
+        if(!swap.receiverIsMM) {
+            uint estimatedTimeSpan = (block.number - swap.startHeight) * BLOCK_INTERVAL;
+            uint realTimeSpan = block.timestamp - swap.startTime;
+            require(estimatedTimeSpan + HALT_TIME > realTimeSpan, "no-close-when-chain-halted");
+        }
 
         // Close the swap.
         swap.secretKey = _secretKey;
@@ -210,9 +227,11 @@ contract AtomicSwapEther {
 
     // refund value
     function expire(bytes32 _secretLock) public {
-        Swap storage swap = swaps[_secretLock];
+        Swap memory swap = swaps[_secretLock];
         require(swap.state == States.OPEN, 'not-open');
-        require(swap.timelock < block.timestamp, 'not-expirable');
+        uint validBlocks = swap.validPeriod/BLOCK_INTERVAL;
+        require(swap.startTime + swap.validPeriod < block.timestamp &&
+                swap.startHeight + validBlocks < block.number, 'not-expirable');
 
         // Expire the swap.
         swap.state = States.EXPIRED;
