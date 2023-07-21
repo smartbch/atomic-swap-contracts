@@ -215,8 +215,8 @@ contract AtomicSwapEther {
         }
 
         // change state.
-        swap.secretKey = _secretKey;
-        swap.state = States.UNLOCKED;
+        swaps[_secretLock].secretKey = _secretKey;
+        swaps[_secretLock].state = States.UNLOCKED;
 
         // Transfer the ETH funds from this contract to the withdrawing trader.
         swap.receiver.transfer(swap.value);
