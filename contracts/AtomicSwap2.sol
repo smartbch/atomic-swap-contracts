@@ -176,6 +176,7 @@ contract AtomicSwapEther2 {
             require(mm.retiredAt == 0 || mm.retiredAt > block.timestamp, 'market-maker-retired');
             require(!mm.unavailable, 'unavailable');
         } else {
+            require(mm.addr == address(0x0), 'withrawer-is-mm');
             require(_penaltyBPS < 10000, 'invalid-penalty-bps');
         }
 
