@@ -42,7 +42,7 @@ contract AtomicSwapEther {
     }
 
     // Swap states
-    enum States { INVALID, OPEN, CLOSED, EXPIRED }
+    enum States { INVALID, LOCKED, UNLOCKED, REFUNDED }
 
 
     uint immutable public MIN_STAKED_VALUE;
@@ -66,7 +66,7 @@ contract AtomicSwapEther {
     }
 
     // Events
-    event Open(address indexed _depositTrader,
+    event Lock(address indexed _depositTrader,
                address indexed _withdrawTrader,
                bytes32 _secretLock,
                uint256 _unlockTime,
@@ -74,8 +74,8 @@ contract AtomicSwapEther {
                bytes20 _bchWithdrawPKH,
                uint256 _createdTime,
                uint16  _penaltyBPS);
-    event Expire(bytes32 indexed _secretLock);
-    event Close(bytes32 indexed _secretLock, bytes32 indexed _secretKey);
+    event Refund(bytes32 indexed _secretLock);
+    event Unlock(bytes32 indexed _secretLock, bytes32 indexed _secretKey);
 
     function getSwapState(bytes32 secretLock) public view returns (States) {
         return swaps[secretLock].state;
@@ -159,7 +159,7 @@ contract AtomicSwapEther {
     }
 
     // lock value
-    function open(address payable _withdrawTrader,
+    function lock(address payable _withdrawTrader,
                   bytes32 _secretLock,
                   uint256 _validPeriod,
                   bytes20 _bchWithdrawPKH,
@@ -194,19 +194,19 @@ contract AtomicSwapEther {
             bchWithdrawPKH: _bchWithdrawPKH,
             penaltyBPS    : _penaltyBPS,
             secretKey     : 0,
-            state         : States.OPEN
+            state         : States.LOCKED
         });
         swaps[_secretLock] = swap;
 
         // Trigger open event.
-        emit Open(msg.sender, _withdrawTrader, _secretLock, _unlockTime, msg.value,
+        emit Lock(msg.sender, _withdrawTrader, _secretLock, _unlockTime, msg.value,
             _bchWithdrawPKH, block.timestamp, _penaltyBPS);
     }
 
     // unlock value
-    function close(bytes32 _secretLock, bytes32 _secretKey) public {
+    function unlock(bytes32 _secretLock, bytes32 _secretKey) public {
         Swap memory swap = swaps[_secretLock];
-        require(swap.state == States.OPEN, 'not-open');
+        require(swap.state == States.LOCKED, 'not-locked');
         require(_secretLock == sha256(abi.encodePacked(_secretKey)), 'invalid-key');
         if(!swap.receiverIsMM) {
             uint estimatedTimeSpan = (block.number - swap.startHeight) * BLOCK_INTERVAL;
@@ -214,27 +214,27 @@ contract AtomicSwapEther {
             require(estimatedTimeSpan + HALT_TIME > realTimeSpan, "no-close-when-chain-halted");
         }
 
-        // Close the swap.
+        // change state.
         swap.secretKey = _secretKey;
-        swap.state = States.CLOSED;
+        swap.state = States.UNLOCKED;
 
         // Transfer the ETH funds from this contract to the withdrawing trader.
         swap.withdrawTrader.transfer(swap.value);
 
         // Trigger close event.
-        emit Close(_secretLock, _secretKey);
+        emit Unlock(_secretLock, _secretKey);
     }
 
     // refund value
-    function expire(bytes32 _secretLock) public {
+    function refund(bytes32 _secretLock) public {
         Swap memory swap = swaps[_secretLock];
-        require(swap.state == States.OPEN, 'not-open');
+        require(swap.state == States.LOCKED, 'not-open');
         uint validBlocks = swap.validPeriod/BLOCK_INTERVAL;
         require(swap.startTime + swap.validPeriod < block.timestamp &&
                 swap.startHeight + validBlocks < block.number, 'not-expirable');
 
-        // Expire the swap.
-        swap.state = States.EXPIRED;
+        // change the state.
+        swap.state = States.REFUNDED;
 
         // Transfer the ETH value from this contract back to the ETH trader (minus penalty).
         uint256 penalty = 0;
@@ -245,7 +245,7 @@ contract AtomicSwapEther {
         swap.ethTrader.transfer(swap.value - penalty);
 
         // Trigger expire event.
-        emit Expire(_secretLock);
+        emit Refund(_secretLock);
     }
 
 }
