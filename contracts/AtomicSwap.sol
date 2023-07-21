@@ -28,17 +28,17 @@ contract AtomicSwapEther {
 
     // Swap info
     struct Swap {
-        bool    receiverIsMM;           // the locked coins will be unlocked a MarketMaker
-        uint64  startTime;              // lock time
-        uint64  startHeight;            // lock height
-        uint32  validPeriod;            // valid time span (in seconds)
-        address payable ethTrader;      // the locker
-        address payable withdrawTrader; // the unlocker
-        uint96  value;                  // locked value
-        bytes20 bchWithdrawPKH;         // BCH recipient address (P2PKH)
-        uint16  penaltyBPS;             // refund penalty ratio (in BPS)
-        States  state;                  //
-        bytes32 secretKey;              // 
+        bool    receiverIsMM;     // the locked coins will be unlocked a MarketMaker
+        uint64  startTime;        // lock time
+        uint64  startHeight;      // lock height
+        uint32  validPeriod;      // valid time span (in seconds)
+        address payable sender;   // the locker
+        address payable receiver; // the unlocker
+        uint96  value;            // locked value
+        bytes20 receiverBchPkh;   // BCH recipient address (P2PKH)
+        uint16  penaltyBPS;       // refund penalty ratio (in BPS)
+        States  state;            //
+        bytes32 secretKey;        // 
     }
 
     // Swap states
@@ -66,12 +66,12 @@ contract AtomicSwapEther {
     }
 
     // Events
-    event Lock(address indexed _depositTrader,
-               address indexed _withdrawTrader,
+    event Lock(address indexed _sender,
+               address indexed _receiver,
                bytes32 _secretLock,
                uint256 _unlockTime,
                uint256 _value,
-               bytes20 _bchWithdrawPKH,
+               bytes20 _receiverBchPkh,
                uint256 _createdTime,
                uint16  _penaltyBPS);
     event Refund(bytes32 indexed _secretLock);
@@ -159,15 +159,15 @@ contract AtomicSwapEther {
     }
 
     // lock value
-    function lock(address payable _withdrawTrader,
+    function lock(address payable _receiver,
                   bytes32 _secretLock,
                   uint256 _validPeriod,
-                  bytes20 _bchWithdrawPKH,
+                  bytes20 _receiverBchPkh,
                   uint16  _penaltyBPS,
                   bool    _receiverIsMM) public payable {
         require(swaps[_secretLock].state == States.INVALID, 'used-secret-lock');
 
-        MarketMaker storage mm = marketMakers[_withdrawTrader];
+        MarketMaker storage mm = marketMakers[_receiver];
         if (_receiverIsMM) {
             require(mm.addr != address(0x0), 'withrawer-not-mm');
             require(_validPeriod == mm.sbchLockTime, 'sbch-lock-time-mismatch');
@@ -189,18 +189,18 @@ contract AtomicSwapEther {
             startHeight   : uint64(block.number),
             validPeriod   : uint32(_validPeriod),
             value         : uint96(msg.value),
-            ethTrader     : payable(msg.sender),
-            withdrawTrader: _withdrawTrader,
-            bchWithdrawPKH: _bchWithdrawPKH,
+            sender        : payable(msg.sender),
+            receiver      : _receiver,
+            receiverBchPkh: _receiverBchPkh,
             penaltyBPS    : _penaltyBPS,
             secretKey     : 0,
             state         : States.LOCKED
         });
         swaps[_secretLock] = swap;
 
-        // Trigger open event.
-        emit Lock(msg.sender, _withdrawTrader, _secretLock, _unlockTime, msg.value,
-            _bchWithdrawPKH, block.timestamp, _penaltyBPS);
+        // Trigger lock event.
+        emit Lock(msg.sender, _receiver, _secretLock, _unlockTime, msg.value,
+            _receiverBchPkh, block.timestamp, _penaltyBPS);
     }
 
     // unlock value
@@ -211,7 +211,7 @@ contract AtomicSwapEther {
         if(!swap.receiverIsMM) {
             uint estimatedTimeSpan = (block.number - swap.startHeight) * BLOCK_INTERVAL;
             uint realTimeSpan = block.timestamp - swap.startTime;
-            require(estimatedTimeSpan + HALT_TIME > realTimeSpan, "no-close-when-chain-halted");
+            require(estimatedTimeSpan + HALT_TIME > realTimeSpan, "no-unlock-when-chain-halted");
         }
 
         // change state.
@@ -219,19 +219,19 @@ contract AtomicSwapEther {
         swap.state = States.UNLOCKED;
 
         // Transfer the ETH funds from this contract to the withdrawing trader.
-        swap.withdrawTrader.transfer(swap.value);
+        swap.receiver.transfer(swap.value);
 
-        // Trigger close event.
+        // Trigger unlock event.
         emit Unlock(_secretLock, _secretKey);
     }
 
     // refund value
     function refund(bytes32 _secretLock) public {
         Swap memory swap = swaps[_secretLock];
-        require(swap.state == States.LOCKED, 'not-open');
+        require(swap.state == States.LOCKED, 'not-locked');
         uint validBlocks = swap.validPeriod/BLOCK_INTERVAL;
         require(swap.startTime + swap.validPeriod < block.timestamp &&
-                swap.startHeight + validBlocks < block.number, 'not-expirable');
+                swap.startHeight + validBlocks < block.number, 'not-refundable');
 
         // change the state.
         swap.state = States.REFUNDED;
@@ -240,11 +240,11 @@ contract AtomicSwapEther {
         uint256 penalty = 0;
         if (swap.penaltyBPS > 0) {
           penalty = swap.value * swap.penaltyBPS / 10000;
-          swap.withdrawTrader.transfer(penalty);
+          swap.receiver.transfer(penalty);
         }
-        swap.ethTrader.transfer(swap.value - penalty);
+        swap.sender.transfer(swap.value - penalty);
 
-        // Trigger expire event.
+        // Trigger refund event.
         emit Refund(_secretLock);
     }
 
