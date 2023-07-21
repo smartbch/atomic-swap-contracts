@@ -234,7 +234,7 @@ contract AtomicSwapEther {
                 swap.startHeight + validBlocks < block.number, 'not-refundable');
 
         // change the state.
-        swap.state = States.REFUNDED;
+        swaps[_secretLock].state = States.REFUNDED;
 
         // Transfer the ETH value from this contract back to the ETH trader (minus penalty).
         uint256 penalty = 0;
