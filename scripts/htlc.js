@@ -109,15 +109,15 @@ async function query(htlcAddr) {
                 const secretLock = await htlc.secretLocks(i);
                 const swap = await htlc.swaps(secretLock);
                 swaps.push({
-                    timelock: swap.timelock.toNumber(),
-                    value: ethers.utils.formatUnits(swap.value),
-                    ethTrader: swap.ethTrader.substring(0, 10) + '...',
-                    withdrawTrader: swap.withdrawTrader.substring(0, 10) + '...',
-                    bchWithdrawPKH: swap.bchWithdrawPKH.substring(0, 10) + '...',
-                    penaltyBPS: swap.penaltyBPS,
-                    secretLock: secretLock.substring(0, 10) + '...',
-                    secretKey: swap.secretKey.substring(0, 10) + '...',
-                    state: states[swap.state],
+                    timelock      : swap.timelock.toNumber(),
+                    value         : ethers.utils.formatUnits(swap.value),
+                    sender        : swap.sender.substring(0, 10) + '...',
+                    receiver      : swap.receiver.substring(0, 10) + '...',
+                    receiverBchPkh: swap.receiverBchPkh.substring(0, 10) + '...',
+                    penaltyBPS    : swap.penaltyBPS,
+                    secretLock    : secretLock.substring(0, 10) + '...',
+                    secretKey     : swap.secretKey.substring(0, 10) + '...',
+                    state         : states[swap.state],
                 });
             } catch (err) {
                 break;
@@ -161,7 +161,7 @@ async function lockBCH(signerIdx, htlcAddr, toAddr, secretKey, lockTime, pkh, pe
 
     secretKey = ethers.utils.formatBytes32String(secretKey);
     const secretLock = ethers.utils.sha256(secretKey);
-    const tx = await htlc.open(toAddr, secretLock, lockTime, pkh, penaltyBPS,
+    const tx = await htlc.lock(toAddr, secretLock, lockTime, pkh, penaltyBPS, false,
         { value: ethers.utils.parseEther(amount) });
     console.log('tx:', tx);
     console.log('result:', await tx.wait());
@@ -174,7 +174,7 @@ async function unlockBCH(signerIdx, htlcAddr, secretKey) {
 
     secretKey = ethers.utils.formatBytes32String(secretKey);
     const secretLock = ethers.utils.sha256(secretKey);
-    const tx = await htlc.close(secretLock, secretKey);
+    const tx = await htlc.unlock(secretLock, secretKey);
     console.log('tx:', tx);
     console.log('result:', await tx.wait());
 }
@@ -185,7 +185,7 @@ async function refundBCH(signerIdx, htlcAddr, secretKey) {
 
     secretKey = ethers.utils.formatBytes32String(secretKey);
     const secretLock = ethers.utils.sha256(secretKey);
-    const tx = await htlc.expire(secretLock);
+    const tx = await htlc.refund(secretLock);
     console.log('tx:', tx);
     console.log('result:', await tx.wait());
 }
