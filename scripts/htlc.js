@@ -101,7 +101,7 @@ async function query(htlcAddr) {
     }
 
     async function getSwaps(htlc) {
-        const states = ["INVALID", "OPEN", "CLOSED", "EXPIRED"];
+        const states = ["INVALID", "LOCKED", "UNLOCKED", "REFUNDED"];
         const swaps = [];
         for (let i = 0; ; i++) {
             process.stdout.write(".");
