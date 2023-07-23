@@ -31,7 +31,7 @@ npx hardhat run scripts/deploy.js --network sbch_testnet
 
 
 
-## Open (Lock SBCH to HTLC)
+## Lock SBCH to HTLC
 
 Example:
 
@@ -49,7 +49,7 @@ HARDHAT_NETWORK=sbch_testnet node ./scripts/htlc.js lock \
 
 
 
-## Close (Unlock SBCH from HTLC)
+## Unlock SBCH from HTLC
 
 Example:
 
@@ -62,7 +62,7 @@ HARDHAT_NETWORK=sbch_testnet node ./scripts/htlc.js unlock \
 
 
 
-## Expire (Refund SBCH from HTLC)
+## Refund SBCH from HTLC
 
 Example:
 
@@ -75,7 +75,7 @@ HARDHAT_NETWORK=sbch_testnet node ./scripts/htlc.js refund \
 
 
 
-## Register Bot
+## Register Marker Maker Bot
 
 Example:
 
