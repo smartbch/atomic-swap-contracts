@@ -132,12 +132,11 @@ contract AtomicSwapEther {
         mm.intro = _intro;
     }
 
-    function retireMarketMaker(uint256 _delay) public {
+    function retireMarketMaker() public {
         MarketMaker storage mm = marketMakers[msg.sender];
         require(mm.addr != address(0x0), 'not-registered');
-        require(mm.retiredAt == 0, 'already-set-retire-time');
-        require(_delay >= MIN_RETIRE_DELAY, 'delay-too-short');
-        mm.retiredAt = uint64(block.timestamp + _delay);
+        require(mm.retiredAt == 0, 'already-retired');
+        mm.retiredAt = uint64(block.timestamp);
     }
 
     function setUnavailable(address marketMaker, bool b) public {
@@ -150,7 +149,8 @@ contract AtomicSwapEther {
     function withdrawStakedValue() public {
         MarketMaker storage mm = marketMakers[msg.sender];
         require(mm.addr != address(0x0), 'not-registered');
-        require(mm.retiredAt > 0 && mm.retiredAt < block.timestamp, 'not-retired');
+        require(mm.retiredAt > 0, 'not-retired');
+        require(mm.retiredAt + MIN_RETIRE_DELAY < block.timestamp, 'not-ready-to-withdraw');
         require(mm.stakedValue > 0, 'nothing-to-withdraw');
         uint val = mm.stakedValue;
         mm.stakedValue = 0;
@@ -173,7 +173,7 @@ contract AtomicSwapEther {
             require(_validPeriod == mm.sbchLockTime, 'sbch-lock-time-mismatch');
             require(_penaltyBPS == mm.penaltyBPS, 'penalty-bps-mismatch');
             require(msg.value >= mm.minSwapAmt && msg.value <= mm.maxSwapAmt, 'value-out-of-range');
-            require(mm.retiredAt == 0 || mm.retiredAt > block.timestamp, 'market-maker-retired');
+            require(mm.retiredAt == 0, 'market-maker-retired');
             require(!mm.unavailable, 'unavailable');
         } else {
             require(mm.addr == address(0x0), 'receiver-is-mm');

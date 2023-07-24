@@ -119,18 +119,15 @@ describe("HTLC", function () {
       await htlc.connect(bot1).registerMarketMaker(intro1, pkh1, bchLockTime1, penaltyBPS1, feeBPS1, minSwapAmt1, maxSwapAmt1, statusChecker1.address, {value: minStakedValue});
       expect(await htlc.marketMakers(bot1.address).then(x => x.retiredAt)).to.equal(0);
 
-      await expect(htlc.connect(bot1).retireMarketMaker(10 * 3600))
-        .to.be.revertedWith("delay-too-short");
-
-      await htlc.connect(bot1).retireMarketMaker(12 * 3600);
+      await htlc.connect(bot1).retireMarketMaker();
       expect(await htlc.marketMakers(bot1.address).then(x => x.retiredAt)).to.gt(0);
 
-      await expect(htlc.connect(bot2).retireMarketMaker(123))
+      await expect(htlc.connect(bot2).retireMarketMaker())
         .to.be.revertedWith("not-registered");
-      await expect(htlc.retireMarketMaker(123))
+      await expect(htlc.retireMarketMaker())
         .to.be.revertedWith("not-registered");
-      await expect(htlc.connect(bot1).retireMarketMaker(24 * 3600))
-        .to.be.revertedWith("already-set-retire-time");
+      await expect(htlc.connect(bot1).retireMarketMaker())
+        .to.be.revertedWith("already-retired");
     });
 
     it("withdrawStakedValue", async function () {
@@ -143,15 +140,15 @@ describe("HTLC", function () {
       await expect(htlc.connect(bot1).withdrawStakedValue())
         .to.be.revertedWith("not-retired");
 
-      await htlc.connect(bot1).retireMarketMaker(24 * 3600);
+      await htlc.connect(bot1).retireMarketMaker();
       await expect(htlc.connect(bot1).withdrawStakedValue())
-        .to.be.revertedWith("not-retired");
+        .to.be.revertedWith("not-ready-to-withdraw");
 
-      await time.increase(12 * 3600);
+      await time.increase(6 * 3600);
       await expect(htlc.connect(bot1).withdrawStakedValue())
-        .to.be.revertedWith("not-retired");
+        .to.be.revertedWith("not-ready-to-withdraw");
 
-      await time.increase(12 * 3600);
+      await time.increase(6 * 3600);
       await expect(htlc.connect(bot1).withdrawStakedValue())
         .to.changeEtherBalances([bot1.address, htlc.address], [minStakedValue*2, -minStakedValue*2]);
 
@@ -182,7 +179,7 @@ describe("HTLC", function () {
       expect((await htlc.getMarketMakers(1, 3)).map(x => x.intro))
         .to.deep.equal([intro2, intro3, intro4]);
 
-      await htlc.connect(bot2).retireMarketMaker(minRetireDelay);
+      await htlc.connect(bot2).retireMarketMaker();
       await time.increase(minRetireDelay);
       await htlc.connect(bot2).withdrawStakedValue();
       expect((await htlc.getMarketMakers(0, 4)).map(x => x.intro))
@@ -205,8 +202,7 @@ describe("HTLC", function () {
 
       await htlc.connect(bot1).registerMarketMaker(intro1, pkh1, bchLockTime1, penaltyBPS1, feeBPS1, minSwapAmt1, maxSwapAmt1, statusChecker1.address, {value: minStakedValue});
       await htlc.connect(bot2).registerMarketMaker(intro2, pkh2, bchLockTime1, penaltyBPS1, feeBPS1, minSwapAmt1, maxSwapAmt1, statusChecker2.address, {value: minStakedValue});
-      await htlc.connect(bot2).retireMarketMaker(minRetireDelay+1);
-      await time.increase(minRetireDelay+1);
+      await htlc.connect(bot2).retireMarketMaker();
 
       await expect(htlc.connect(user1).lock(user2.address, secretLock2, sbchLockTime1, pkh2, penaltyBPS1, true))
         .to.be.revertedWith("receiver-not-mm");
