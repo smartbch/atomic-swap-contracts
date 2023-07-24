@@ -204,11 +204,15 @@ describe("HTLC", function () {
       await htlc.connect(bot2).registerMarketMaker(intro2, pkh2, bchLockTime1, penaltyBPS1, feeBPS1, minSwapAmt1, maxSwapAmt1, statusChecker2.address, {value: minStakedValue});
       await htlc.connect(bot2).retireMarketMaker();
 
-      await expect(htlc.connect(user1).lock(user2.address, secretLock2, sbchLockTime1, pkh2, penaltyBPS1, true))
-        .to.be.revertedWith("receiver-not-mm");
       await expect(htlc.connect(user1).lock(bot1.address, secretLock2, sbchLockTime1, pkh2, penaltyBPS1, false))
         .to.be.revertedWith("receiver-is-mm");
+      await expect(htlc.connect(bot2).lock(user1.address, secretLock2, sbchLockTime1, pkh2, penaltyBPS1, false))
+        .to.be.revertedWith("sender-is-retired");
 
+      await expect(htlc.connect(bot1).lock(user1.address, secretLock1, sbchLockTime1, pkh2, penaltyBPS1, true))
+        .to.be.revertedWith("sender-is-mm");
+      await expect(htlc.connect(user1).lock(user2.address, secretLock2, sbchLockTime1, pkh2, penaltyBPS1, true))
+        .to.be.revertedWith("receiver-not-mm");
       await expect(htlc.connect(user1).lock(bot1.address, secretLock1, sbchLockTime1/2, pkh1, penaltyBPS1, true))
         .to.be.revertedWith("sbch-lock-time-mismatch");
       await expect(htlc.connect(user1).lock(bot1.address, secretLock1, sbchLockTime1, pkh1, penaltyBPS1/2, true))

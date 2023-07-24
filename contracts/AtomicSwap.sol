@@ -167,8 +167,10 @@ contract AtomicSwapEther {
                   bool    _receiverIsMM) public payable {
         require(swaps[_secretLock].state == States.INVALID, 'used-secret-lock');
 
-        MarketMaker storage mm = marketMakers[_receiver];
         if (_receiverIsMM) {
+            require(marketMakers[msg.sender].addr == address(0x0), 'sender-is-mm');
+
+            MarketMaker storage mm = marketMakers[_receiver];
             require(mm.addr != address(0x0), 'receiver-not-mm');
             require(_validPeriod == mm.sbchLockTime, 'sbch-lock-time-mismatch');
             require(_penaltyBPS == mm.penaltyBPS, 'penalty-bps-mismatch');
@@ -176,7 +178,8 @@ contract AtomicSwapEther {
             require(mm.retiredAt == 0, 'market-maker-retired');
             require(!mm.unavailable, 'unavailable');
         } else {
-            require(mm.addr == address(0x0), 'receiver-is-mm');
+            require(marketMakers[_receiver].addr == address(0x0), 'receiver-is-mm');
+            require(marketMakers[msg.sender].retiredAt == 0, 'sender-is-retired');
             require(_penaltyBPS < 10000, 'invalid-penalty-bps');
         }
 
