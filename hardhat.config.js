@@ -28,7 +28,7 @@ module.exports = {
       url: 'https://rpc.smartbch.org',
       accounts: [process.env.KEY || '0000000000000000000000000000000000000000000000000000000000000000'],
       minStakedValue: '1.0',
-      minRetireDelay: 24 * 3600,
+      minRetireDelay: 48 * 3600,
     },
   }
 };
