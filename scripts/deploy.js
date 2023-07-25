@@ -8,11 +8,15 @@ const hre = require("hardhat");
 const ethers = hre.ethers;
 
 async function main() {
+  // console.log('config:', hre.network.config);
+
   const [ deployer ] = await ethers.getSigners();
   console.log('deployer:', deployer.address);
 
-  const minStakedValue = ethers.utils.parseUnits('0.1');
-  const minRetireDelay = 2 * 3600;
+  const minStakedValue = ethers.utils.parseUnits(hre.network.config.minStakedValue);
+  const minRetireDelay = hre.network.config.minRetireDelay;
+  console.log('minStakedValue:', minStakedValue);
+  console.log('minRetireDelay:', minRetireDelay);
 
   const HTLC = await ethers.getContractFactory("AtomicSwapEther");
   const htlc = await HTLC.deploy(minStakedValue, minRetireDelay);
