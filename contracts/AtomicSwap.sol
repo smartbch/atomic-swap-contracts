@@ -179,7 +179,8 @@ contract AtomicSwapEther {
             require(!mm.unavailable, 'unavailable');
         } else {
             require(marketMakers[_receiver].addr == address(0x0), 'receiver-is-mm');
-            require(marketMakers[msg.sender].retiredAt == 0, 'sender-is-retired');
+            require(marketMakers[msg.sender].retiredAt == 0, 'sender-is-retired');   // in case sender is market maker bot
+            require(!marketMakers[msg.sender].unavailable, 'sender-is-unavailable'); // in case sender is market maker bot
             require(_penaltyBPS < 10000, 'invalid-penalty-bps');
         }
 
