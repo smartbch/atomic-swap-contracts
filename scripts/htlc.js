@@ -18,7 +18,8 @@ yargs(process.argv.slice(2))
             .option('pkh',            { required: true, type: 'string', description: 'bot public key hash (hex)' })
             .option('bch-lock-time',  { required: true, type: 'number', description: "BCH HTLC lock-time (in blocks)" })
             .option('penalty-bps',    { required: true, type: 'number', description: 'penalty ratio of HTLC refund (in BPS)'})
-            .option('fee-bps',        { required: true, type: 'number', description: 'service fee ratio (in BPS)' })
+            .option('bch-price',      { required: true, type: 'string', description: 'BCH price (in sBCH)' })
+            .option('sbch-price',     { required: true, type: 'string', description: 'sBCH price (in BCH)' })
             .option('min-swap-amt',   { required: true, type: 'string', description: "min amount of swap (in Ethers)"})
             .option('max-swap-amt',   { required: true, type: 'string', description: "max amount of swap (in Ethers)"})
             .option('status-checker', { required: true, type: 'string', description: "status checker" })
@@ -26,7 +27,9 @@ yargs(process.argv.slice(2))
             ;
     }, async (argv) => {
         await registerBot(argv.signer, argv.htlcAddr, argv.intro, argv.pkh, 
-            argv.bchLockTime, argv.penaltyBps, argv.feeBps,
+            argv.bchLockTime, argv.penaltyBps,
+            ethers.utils.parseEther(argv.bchPrice),
+            ethers.utils.parseEther(argv.sbchPrice),
             ethers.utils.parseEther(argv.minSwapAmt),
             ethers.utils.parseEther(argv.maxSwapAmt), 
             ethers.utils.parseEther(argv.stakedVal), 
@@ -88,7 +91,10 @@ async function query(htlcAddr) {
                     bchLockTime : botInfo.bchLockTime,
                     sbchLockTime: botInfo.sbchLockTime,
                     penaltyBPS  : botInfo.penaltyBPS,
-                    feeBPS      : botInfo.feeBPS,
+                    bchPrice    : ethers.utils.formatUnits(botInfo.bchPrice),
+                    sbchPrice   : ethers.utils.formatUnits(botInfo.sbchPrice),
+                    minSwapAmt  : ethers.utils.formatUnits(botInfo.minSwapAmt),
+                    maxSwapAmt  : ethers.utils.formatUnits(botInfo.maxSwapAmt),
                     stakedValue : ethers.utils.formatUnits(botInfo.stakedValue),
                     retiredAt   : botInfo.retiredAt.toNumber(),
                 });
@@ -139,7 +145,7 @@ async function query(htlcAddr) {
 }
 
 async function registerBot(signerIdx, htlcAddr, intro, pkh, 
-        bchLockTime, penaltyBPS, feeBPS, minSwapAmt, maxSwapAmt, stakedVal,
+        bchLockTime, penaltyBPS, bchPrice, sbchPrice, minSwapAmt, maxSwapAmt, stakedVal,
         statusChecker) {
 
     console.log('register bot ...');
@@ -148,7 +154,7 @@ async function registerBot(signerIdx, htlcAddr, intro, pkh,
 
     const botIntro = ethers.utils.formatBytes32String(intro);
     const tx = await htlc.registerMarketMaker(botIntro, pkh,
-        bchLockTime, penaltyBPS, feeBPS, minSwapAmt, maxSwapAmt, statusChecker,
+        bchLockTime, penaltyBPS, bchPrice, sbchPrice, minSwapAmt, maxSwapAmt, statusChecker,
         {value: stakedVal});
     console.log('tx:', tx);
     console.log('result:', await tx.wait());

@@ -18,7 +18,8 @@ contract AtomicSwapEther {
         uint16  bchLockTime;   // BCH HTLC lock time (in blocks)
         uint32  sbchLockTime;  // sBCH HTLC lock time (in seconds)
         uint16  penaltyBPS;    // refund penalty ratio (in BPS)
-        uint16  feeBPS;        // service fee ratio (in BPS)
+        uint256 bchPrice;      // BCH price (in sBCH)
+        uint256 sbchPrice;     // sBCH price (in BCH)
         uint256 minSwapAmt;    //
         uint256 maxSwapAmt;    //
         uint256 stakedValue;   // to prevent spam bots
@@ -56,7 +57,7 @@ contract AtomicSwapEther {
     mapping (bytes32 => Swap) public swaps; // secretLock => Swap
 
     // Market maker registry
-    mapping (address => MarketMaker) public marketMakers;
+    mapping (address => MarketMaker) private marketMakers; // public will cause 'CompilerError: Stack too deep'
     EnumerableSet.AddressSet private marketMakerAddrs;
 
 
@@ -76,6 +77,10 @@ contract AtomicSwapEther {
                uint16  _penaltyBPS);
     event Refund(bytes32 indexed _secretLock);
     event Unlock(bytes32 indexed _secretLock, bytes32 indexed _secretKey);
+
+    function marketMakerByAddress(address addr) public view returns (MarketMaker memory) {
+        return marketMakers[addr];
+    }
 
     function getSwapState(bytes32 secretLock) public view returns (States) {
         return swaps[secretLock].state;
@@ -107,29 +112,34 @@ contract AtomicSwapEther {
                                  bytes20 _bchPkh,
                                  uint16  _bchLockTime,
                                  uint16  _penaltyBPS,
-                                 uint16  _feeBPS,
+                                 uint256 _bchPrice,
+                                 uint256 _sbchPrice,
                                  uint256 _minSwapAmt,
                                  uint256 _maxSwapAmt,
                                  address _statusChecker) public payable {
         require(marketMakers[msg.sender].addr == address(0x0), 'registered-address');
         require(_bchLockTime > 0, 'zero-bch-lock-time');
         require(_penaltyBPS < 10000, 'invalid-penalty-bps');
-        require(_feeBPS < 10000, 'invalid-fee-bps');
         require(_maxSwapAmt > _minSwapAmt, 'invalid-swap-amt');
         require(msg.value >= MIN_STAKED_VALUE, 'not-enough-staked-val');
 
         // console.log('_bchLockTime: %d', _bchLockTime);
         uint32 _sbchLockTime = uint32(_bchLockTime) * 10 * 60;
         marketMakers[msg.sender] = MarketMaker(msg.sender, 0, _intro, _bchPkh,
-            _bchLockTime, _sbchLockTime, _penaltyBPS, _feeBPS, _minSwapAmt, _maxSwapAmt, msg.value,
+            _bchLockTime, _sbchLockTime, _penaltyBPS, _bchPrice, _sbchPrice, 
+            _minSwapAmt, _maxSwapAmt, msg.value,
             _statusChecker, false);
         marketMakerAddrs.add(msg.sender);
     }
 
-    function updateMarketMaker(bytes32 _intro) public {
+    function updateMarketMaker(bytes32 _intro,
+                               uint256 _bchPrice,
+                               uint256 _sbchPrice) public {
         MarketMaker storage mm = marketMakers[msg.sender];
         require(mm.addr != address(0x0), 'not-registered');
         mm.intro = _intro;
+        mm.bchPrice = _bchPrice;
+        mm.sbchPrice = _sbchPrice;
     }
 
     function retireMarketMaker() public {
