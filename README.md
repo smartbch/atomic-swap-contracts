@@ -85,7 +85,6 @@ HARDHAT_NETWORK=sbch_testnet node ./scripts/htlc.js register-bot \
 	--intro=BCHFANS \
 	--pkh=0x4d027fdd0585302264922bed58b8a84d38776ccb \
 	--bch-lock-time=6 \
-	--sbch-lock-time=3600 \
 	--penalty-bps=500 \
 	--bch-price=1.0 \
 	--sbch-price=1.0 \

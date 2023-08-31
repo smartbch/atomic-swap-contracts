@@ -74,9 +74,11 @@ contract AtomicSwapEther {
                uint256 _value,
                bytes20 _receiverBchPkh,
                uint256 _createdTime,
-               uint16  _penaltyBPS);
+               uint16  _penaltyBPS,
+               uint256 _expectedPrice);
     event Refund(bytes32 indexed _secretLock);
-    event Unlock(bytes32 indexed _secretLock, bytes32 indexed _secretKey);
+    event Unlock(bytes32 indexed _secretLock, 
+                 bytes32 indexed _secretKey);
 
     function marketMakerByAddress(address addr) public view returns (MarketMaker memory) {
         return marketMakers[addr];
@@ -174,7 +176,8 @@ contract AtomicSwapEther {
                   uint256 _validPeriod,
                   bytes20 _receiverBchPkh,
                   uint16  _penaltyBPS,
-                  bool    _receiverIsMM) public payable {
+                  bool    _receiverIsMM,
+                  uint256 _expectedPrice) public payable {
         require(swaps[_secretLock].state == States.INVALID, 'used-secret-lock');
 
         if (_receiverIsMM) {
@@ -214,7 +217,7 @@ contract AtomicSwapEther {
 
         // Trigger lock event.
         emit Lock(msg.sender, _receiver, _secretLock, _unlockTime, msg.value,
-            _receiverBchPkh, block.timestamp, _penaltyBPS);
+            _receiverBchPkh, block.timestamp, _penaltyBPS, _expectedPrice);
     }
 
     // unlock value

@@ -198,48 +198,50 @@ describe("HTLC", function () {
 
   describe("AtomicSwap", function () {
 
+    const expectedPrice = ethers.utils.parseEther('1.0');
+
     it("lock: errors", async function () {
       const { htlc, bot1, bot2, user1, user2, statusChecker1, statusChecker2 } = await loadFixture(deployFixture);
 
       await htlc.connect(bot1).registerMarketMaker(intro1, pkh1, bchLockTime1, penaltyBPS1, bchPrice, sbchPrice, minSwapAmt1, maxSwapAmt1, statusChecker1.address, {value: minStakedValue});
       await htlc.connect(bot2).registerMarketMaker(intro2, pkh2, bchLockTime1, penaltyBPS1, bchPrice, sbchPrice, minSwapAmt1, maxSwapAmt1, statusChecker2.address, {value: minStakedValue});
 
-      await expect(htlc.connect(user1).lock(bot1.address, secretLock2, sbchLockTime1, pkh2, penaltyBPS1, false))
+      await expect(htlc.connect(user1).lock(bot1.address, secretLock2, sbchLockTime1, pkh2, penaltyBPS1, false, expectedPrice))
         .to.be.revertedWith("receiver-is-mm");
 
       await htlc.connect(statusChecker2).setUnavailable(bot2.address, true);
-      await expect(htlc.connect(bot2).lock(user1.address, secretLock2, sbchLockTime1, pkh2, penaltyBPS1, false))
+      await expect(htlc.connect(bot2).lock(user1.address, secretLock2, sbchLockTime1, pkh2, penaltyBPS1, false, expectedPrice))
         .to.be.revertedWith("sender-is-unavailable");
 
       await htlc.connect(bot2).retireMarketMaker();
-      await expect(htlc.connect(bot2).lock(user1.address, secretLock2, sbchLockTime1, pkh2, penaltyBPS1, false))
+      await expect(htlc.connect(bot2).lock(user1.address, secretLock2, sbchLockTime1, pkh2, penaltyBPS1, false, expectedPrice))
         .to.be.revertedWith("sender-is-retired");
 
-      await expect(htlc.connect(bot1).lock(user1.address, secretLock1, sbchLockTime1, pkh2, penaltyBPS1, true))
+      await expect(htlc.connect(bot1).lock(user1.address, secretLock1, sbchLockTime1, pkh2, penaltyBPS1, true, expectedPrice))
         .to.be.revertedWith("sender-is-mm");
-      await expect(htlc.connect(user1).lock(user2.address, secretLock2, sbchLockTime1, pkh2, penaltyBPS1, true))
+      await expect(htlc.connect(user1).lock(user2.address, secretLock2, sbchLockTime1, pkh2, penaltyBPS1, true, expectedPrice))
         .to.be.revertedWith("receiver-not-mm");
-      await expect(htlc.connect(user1).lock(bot1.address, secretLock1, sbchLockTime1/2, pkh1, penaltyBPS1, true))
+      await expect(htlc.connect(user1).lock(bot1.address, secretLock1, sbchLockTime1/2, pkh1, penaltyBPS1, true, expectedPrice))
         .to.be.revertedWith("sbch-lock-time-mismatch");
-      await expect(htlc.connect(user1).lock(bot1.address, secretLock1, sbchLockTime1, pkh1, penaltyBPS1/2, true))
+      await expect(htlc.connect(user1).lock(bot1.address, secretLock1, sbchLockTime1, pkh1, penaltyBPS1/2, true, expectedPrice))
         .to.be.revertedWith("penalty-bps-mismatch");
-      await expect(htlc.connect(user1).lock(bot1.address, secretLock1, sbchLockTime1, pkh1, penaltyBPS1, true, {value: minSwapAmt1.sub(1)}))
+      await expect(htlc.connect(user1).lock(bot1.address, secretLock1, sbchLockTime1, pkh1, penaltyBPS1, true, expectedPrice, {value: minSwapAmt1.sub(1)}))
         .to.be.revertedWith("value-out-of-range");
-      await expect(htlc.connect(user1).lock(bot1.address, secretLock1, sbchLockTime1, pkh1, penaltyBPS1, true, {value: maxSwapAmt1.add(1)}))
+      await expect(htlc.connect(user1).lock(bot1.address, secretLock1, sbchLockTime1, pkh1, penaltyBPS1, true, expectedPrice, {value: maxSwapAmt1.add(1)}))
         .to.be.revertedWith("value-out-of-range");
-      await expect(htlc.connect(user1).lock(bot2.address, secretLock2, sbchLockTime1, pkh2, penaltyBPS1, true, {value: minSwapAmt1.add(1)}))
+      await expect(htlc.connect(user1).lock(bot2.address, secretLock2, sbchLockTime1, pkh2, penaltyBPS1, true, expectedPrice, {value: minSwapAmt1.add(1)}))
         .to.be.revertedWith("market-maker-retired");
 
       // ok
-      await htlc.connect(user1).lock(bot1.address, secretLock1, sbchLockTime1, pkh1, penaltyBPS1, true, {value: minSwapAmt1.add(1)});
+      await htlc.connect(user1).lock(bot1.address, secretLock1, sbchLockTime1, pkh1, penaltyBPS1, true, expectedPrice, {value: minSwapAmt1.add(1)});
 
-      await expect(htlc.connect(user2).lock(user1.address, secretLock1, sbchLockTime1, pkh2, penaltyBPS1, false))
+      await expect(htlc.connect(user2).lock(user1.address, secretLock1, sbchLockTime1, pkh2, penaltyBPS1, false, expectedPrice))
         .to.be.revertedWith("used-secret-lock");
-      await expect(htlc.connect(user2).lock(user1.address, secretLock2, sbchLockTime1, pkh2, 10000, false))
+      await expect(htlc.connect(user2).lock(user1.address, secretLock2, sbchLockTime1, pkh2, 10000, false, expectedPrice))
         .to.be.revertedWith("invalid-penalty-bps");
 
       await htlc.connect(statusChecker1).setUnavailable(bot1.address, true);
-      await expect(htlc.connect(user1).lock(bot1.address, secretLock2, sbchLockTime1, pkh1, penaltyBPS1, true, {value: minSwapAmt1.add(1)}))
+      await expect(htlc.connect(user1).lock(bot1.address, secretLock2, sbchLockTime1, pkh1, penaltyBPS1, true, expectedPrice, {value: minSwapAmt1.add(1)}))
         .to.be.revertedWith("unavailable");
     });
 
@@ -247,14 +249,14 @@ describe("HTLC", function () {
       const { htlc, user1, user2 } = await loadFixture(deployFixture);
 
       const amt1 = 123456789;
-      await expect(htlc.connect(user1).lock(user2.address, secretLock1, sbchLockTime1, pkh1, penaltyBPS1, false, {value: amt1}))
+      await expect(htlc.connect(user1).lock(user2.address, secretLock1, sbchLockTime1, pkh1, penaltyBPS1, false, expectedPrice, {value: amt1}))
         .to.changeEtherBalances([user1.address, htlc.address], [-amt1, amt1])
-        .to.emit(htlc, "Lock").withArgs(user1.address, user2.address, secretLock1, anyValue, amt1, pkh1, anyValue, penaltyBPS1);
+        .to.emit(htlc, "Lock").withArgs(user1.address, user2.address, secretLock1, anyValue, amt1, pkh1, anyValue, penaltyBPS1, expectedPrice);
 
       const amt2 = 234567890;
-      await expect(htlc.connect(user2).lock(user1.address, secretLock2, sbchLockTime1, pkh2, penaltyBPS1, false, {value: amt2}))
+      await expect(htlc.connect(user2).lock(user1.address, secretLock2, sbchLockTime1, pkh2, penaltyBPS1, false, expectedPrice, {value: amt2}))
         .to.changeEtherBalances([user2.address, htlc.address], [-amt2, amt2])
-        .to.emit(htlc, "Lock").withArgs(user2.address, user1.address, secretLock2, anyValue, amt2, pkh2, anyValue, penaltyBPS1);
+        .to.emit(htlc, "Lock").withArgs(user2.address, user1.address, secretLock2, anyValue, amt2, pkh2, anyValue, penaltyBPS1, expectedPrice);
 
       // expect(await htlc.secretLocks(0)).to.equal(secretLock1);
       // expect(await htlc.secretLocks(1)).to.equal(secretLock2);
@@ -278,7 +280,7 @@ describe("HTLC", function () {
     it("unlock: errors", async function () {
       const { htlc, user1, user2 } = await loadFixture(deployFixture);
 
-      await htlc.connect(user1).lock(user2.address, secretLock1, sbchLockTime1, pkh1, penaltyBPS1, false, {value: 12345});
+      await htlc.connect(user1).lock(user2.address, secretLock1, sbchLockTime1, pkh1, penaltyBPS1, false, expectedPrice, {value: 12345});
 
       await expect(htlc.unlock(secretLock2, secretLock1))
         .to.be.revertedWith("not-locked");
@@ -295,7 +297,7 @@ describe("HTLC", function () {
       const { htlc, user1, user2 } = await loadFixture(deployFixture);
 
       const amt = 123456789;
-      await htlc.connect(user1).lock(user2.address, secretLock1, sbchLockTime1, pkh1, penaltyBPS1, false, {value: amt});
+      await htlc.connect(user1).lock(user2.address, secretLock1, sbchLockTime1, pkh1, penaltyBPS1, false, expectedPrice, {value: amt});
 
       await expect(htlc.unlock(secretLock1, secretKey1))
         .to.changeEtherBalances([htlc.address, user2.address], [-amt, amt])
@@ -312,7 +314,7 @@ describe("HTLC", function () {
     it("refund: errors", async function () {
       const { htlc, user1, user2 } = await loadFixture(deployFixture);
 
-      await htlc.connect(user1).lock(user2.address, secretLock1, sbchLockTime1, pkh1, penaltyBPS1, false, {value: 12345});
+      await htlc.connect(user1).lock(user2.address, secretLock1, sbchLockTime1, pkh1, penaltyBPS1, false, expectedPrice, {value: 12345});
 
       await expect(htlc.refund(secretLock2))
         .to.be.revertedWith("not-locked");
@@ -328,7 +330,7 @@ describe("HTLC", function () {
     it("refund: ok", async function () {
       const { htlc, user1, user2 } = await loadFixture(deployFixture);
 
-      await htlc.connect(user1).lock(user2.address, secretLock1, sbchLockTime1, pkh1, 500, false, {value: 20000});
+      await htlc.connect(user1).lock(user2.address, secretLock1, sbchLockTime1, pkh1, 500, false, expectedPrice, {value: 20000});
 
       await time.increase(sbchLockTime1 + 10);
       await mine(sbchLockTime1/6 + 10);
