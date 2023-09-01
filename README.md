@@ -26,7 +26,7 @@ REPORT_GAS=true npx hardhat test
 
 ```bash
 npx hardhat run scripts/deploy.js --network sbch_testnet
-# HTLC deployed to 0xc456314331D6f50681266fCC6CcA8542Ae71EbD8
+# HTLC deployed to 0x7aCB985210037983c7E1814c847d63235CCcB88f
 ```
 
 
@@ -38,7 +38,7 @@ Example:
 ```bash
 HARDHAT_NETWORK=sbch_testnet node ./scripts/htlc.js lock \
 	--signer=2 \
-	--htlc-addr=0xc456314331D6f50681266fCC6CcA8542Ae71EbD8 \
+	--htlc-addr=0x7aCB985210037983c7E1814c847d63235CCcB88f \
 	--to-addr=0x8b1C9950aA5c6fF3BB038ff31878dd6a268958f8 \
 	--secret-key=hello \
 	--lock-time=2400 \
@@ -57,7 +57,8 @@ Example:
 ```bash
 HARDHAT_NETWORK=sbch_testnet node ./scripts/htlc.js unlock \
 	--signer=3 \
-	--htlc-addr=0xc456314331D6f50681266fCC6CcA8542Ae71EbD8 \
+	--htlc-addr=0x7aCB985210037983c7E1814c847d63235CCcB88f \
+	--sender-addr=0x621e0B041D19B6472B1e991fE53D78aF3C264FA8 \
 	--secret-key=hello
 ```
 
@@ -70,7 +71,8 @@ Example:
 ```bash
 HARDHAT_NETWORK=sbch_testnet node ./scripts/htlc.js refund \
 	--signer=2 \
-	--htlc-addr=0xc456314331D6f50681266fCC6CcA8542Ae71EbD8 \
+	--htlc-addr=0x7aCB985210037983c7E1814c847d63235CCcB88f \
+	--sender-addr=0x621e0B041D19B6472B1e991fE53D78aF3C264FA8 \
 	--secret-key=hello
 ```
 
@@ -83,7 +85,7 @@ Example:
 ```bash
 HARDHAT_NETWORK=sbch_testnet node ./scripts/htlc.js register-bot \
 	--signer=1 \
-	--htlc-addr=0xc456314331D6f50681266fCC6CcA8542Ae71EbD8 \
+	--htlc-addr=0x7aCB985210037983c7E1814c847d63235CCcB88f \
 	--intro=BCHFANS \
 	--pkh=0x4d027fdd0585302264922bed58b8a84d38776ccb \
 	--bch-lock-time=6 \
@@ -105,7 +107,7 @@ Example:
 ```bash
 HARDHAT_NETWORK=sbch_testnet node ./scripts/htlc.js update-bot \
 	--signer=1 \
-	--htlc-addr=0xc456314331D6f50681266fCC6CcA8542Ae71EbD8 \
+	--htlc-addr=0x7aCB985210037983c7E1814c847d63235CCcB88f \
 	--intro=BCHFANS \
 	--bch-price=1.1 \
 	--sbch-price=0.9
@@ -119,10 +121,11 @@ Example:
 
 ```bash
 HARDHAT_NETWORK=sbch_testnet node ./scripts/htlc.js query-bots \
-	--htlc-addr=0xc456314331D6f50681266fCC6CcA8542Ae71EbD8
+	--htlc-addr=0x7aCB985210037983c7E1814c847d63235CCcB88f
 
 HARDHAT_NETWORK=sbch_testnet node ./scripts/htlc.js query-swap \
-	--htlc-addr=0xc456314331D6f50681266fCC6CcA8542Ae71EbD8 \
+	--htlc-addr=0x7aCB985210037983c7E1814c847d63235CCcB88f \
+	--sender-addr=0x621e0B041D19B6472B1e991fE53D78aF3C264FA8 \
 	--secret-key=hello
 ```
 

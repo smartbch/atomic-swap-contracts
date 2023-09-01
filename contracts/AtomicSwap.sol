@@ -40,6 +40,7 @@ contract AtomicSwapEther {
         uint16  penaltyBPS;       // refund penalty ratio (in BPS)
         States  state;            //
         bytes32 secretKey;        // 
+        uint256 expectedPrice;    // read by frontend
     }
 
     // Swap states
@@ -53,8 +54,8 @@ contract AtomicSwapEther {
     uint32 constant private BLOCK_INTERVAL = 6;
 
 
-    // All swaps
-    mapping (bytes32 => Swap) public swaps; // secretLock => Swap
+    // All swaps, (sender, secretLock) => Swap
+    mapping (address => mapping (bytes32 => Swap)) public swaps;
 
     // Market maker registry
     mapping (address => MarketMaker) private marketMakers; // public will cause 'CompilerError: Stack too deep'
@@ -84,8 +85,8 @@ contract AtomicSwapEther {
         return marketMakers[addr];
     }
 
-    function getSwapState(bytes32 secretLock) public view returns (States) {
-        return swaps[secretLock].state;
+    function getSwapState(address sender, bytes32 secretLock) public view returns (States) {
+        return swaps[sender][secretLock].state;
     }
 
     function getMarketMakers(uint256 fromIdx, uint256 count
@@ -178,7 +179,7 @@ contract AtomicSwapEther {
                   uint16  _penaltyBPS,
                   bool    _receiverIsMM,
                   uint256 _expectedPrice) public payable {
-        require(swaps[_secretLock].state == States.INVALID, 'used-secret-lock');
+        require(swaps[msg.sender][_secretLock].state == States.INVALID, 'used-secret-lock');
 
         if (_receiverIsMM) {
             require(marketMakers[msg.sender].addr == address(0x0), 'sender-is-mm');
@@ -211,9 +212,10 @@ contract AtomicSwapEther {
             receiverBchPkh: _receiverBchPkh,
             penaltyBPS    : _penaltyBPS,
             secretKey     : 0,
+            expectedPrice : _expectedPrice,
             state         : States.LOCKED
         });
-        swaps[_secretLock] = swap;
+        swaps[msg.sender][_secretLock] = swap;
 
         // Trigger lock event.
         emit Lock(msg.sender, _receiver, _secretLock, _unlockTime, msg.value,
@@ -221,8 +223,8 @@ contract AtomicSwapEther {
     }
 
     // unlock value
-    function unlock(bytes32 _secretLock, bytes32 _secretKey) public {
-        Swap memory swap = swaps[_secretLock];
+    function unlock(address sender, bytes32 _secretLock, bytes32 _secretKey) public {
+        Swap memory swap = swaps[sender][_secretLock];
         require(swap.state == States.LOCKED, 'not-locked');
         require(_secretLock == sha256(abi.encodePacked(_secretKey)), 'invalid-key');
         if(!swap.receiverIsMM) {
@@ -232,8 +234,8 @@ contract AtomicSwapEther {
         }
 
         // change state.
-        swaps[_secretLock].secretKey = _secretKey;
-        swaps[_secretLock].state = States.UNLOCKED;
+        swaps[sender][_secretLock].secretKey = _secretKey;
+        swaps[sender][_secretLock].state = States.UNLOCKED;
 
         // Transfer the ETH funds from this contract to the withdrawing trader.
         swap.receiver.transfer(swap.value);
@@ -243,15 +245,15 @@ contract AtomicSwapEther {
     }
 
     // refund value
-    function refund(bytes32 _secretLock) public {
-        Swap memory swap = swaps[_secretLock];
+    function refund(address sender, bytes32 _secretLock) public {
+        Swap memory swap = swaps[sender][_secretLock];
         require(swap.state == States.LOCKED, 'not-locked');
         uint validBlocks = swap.validPeriod/BLOCK_INTERVAL;
         require(swap.startTime + swap.validPeriod < block.timestamp &&
                 swap.startHeight + validBlocks < block.number, 'not-refundable');
 
         // change the state.
-        swaps[_secretLock].state = States.REFUNDED;
+        swaps[sender][_secretLock].state = States.REFUNDED;
 
         // Transfer the ETH value from this contract back to the ETH trader (minus penalty).
         uint256 penalty = 0;

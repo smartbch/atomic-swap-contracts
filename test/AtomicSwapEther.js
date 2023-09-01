@@ -235,7 +235,7 @@ describe("HTLC", function () {
       // ok
       await htlc.connect(user1).lock(bot1.address, secretLock1, sbchLockTime1, pkh1, penaltyBPS1, true, expectedPrice, {value: minSwapAmt1.add(1)});
 
-      await expect(htlc.connect(user2).lock(user1.address, secretLock1, sbchLockTime1, pkh2, penaltyBPS1, false, expectedPrice))
+      await expect(htlc.connect(user1).lock(user1.address, secretLock1, sbchLockTime1, pkh2, penaltyBPS1, false, expectedPrice))
         .to.be.revertedWith("used-secret-lock");
       await expect(htlc.connect(user2).lock(user1.address, secretLock2, sbchLockTime1, pkh2, 10000, false, expectedPrice))
         .to.be.revertedWith("invalid-penalty-bps");
@@ -261,7 +261,7 @@ describe("HTLC", function () {
       // expect(await htlc.secretLocks(0)).to.equal(secretLock1);
       // expect(await htlc.secretLocks(1)).to.equal(secretLock2);
 
-      const swap0 = await htlc.swaps(secretLock1);
+      const swap0 = await htlc.swaps(user1.address, secretLock1);
     //expect(swap0.timelock).to.equal(0);
       expect(swap0.value).to.equal(amt1);
       expect(swap0.sender).to.equal(user1.address);
@@ -271,9 +271,9 @@ describe("HTLC", function () {
       expect(swap0.secretKey).to.equal(zeroBytes32);
       expect(swap0.state).to.equal(LOCKED);
 
-      expect(await htlc.getSwapState(secretLock1))
+      expect(await htlc.getSwapState(user1.address, secretLock1))
         .to.be.equal(LOCKED);
-      expect(await htlc.getSwapState(ethers.utils.sha256('0xfafafafafa')))
+      expect(await htlc.getSwapState(user1.address, ethers.utils.sha256('0xfafafafafa')))
         .to.be.equal(INVALID);
     });
 
@@ -282,14 +282,16 @@ describe("HTLC", function () {
 
       await htlc.connect(user1).lock(user2.address, secretLock1, sbchLockTime1, pkh1, penaltyBPS1, false, expectedPrice, {value: 12345});
 
-      await expect(htlc.unlock(secretLock2, secretLock1))
+      await expect(htlc.unlock(user1.address, secretLock2, secretLock1))
         .to.be.revertedWith("not-locked");
-      await expect(htlc.unlock(secretLock1, secretLock2))
+      await expect(htlc.unlock(user2.address, secretLock1, secretLock1))
+        .to.be.revertedWith("not-locked");
+      await expect(htlc.unlock(user1.address, secretLock1, secretLock2))
         .to.be.revertedWith("invalid-key");
 
       // chain halted
       await time.increase(sbchLockTime1 + 10);
-      await expect(htlc.unlock(secretLock1, secretKey1))
+      await expect(htlc.unlock(user1.address, secretLock1, secretKey1))
         .to.be.revertedWith("no-unlock-when-chain-halted");
     });
 
@@ -299,15 +301,15 @@ describe("HTLC", function () {
       const amt = 123456789;
       await htlc.connect(user1).lock(user2.address, secretLock1, sbchLockTime1, pkh1, penaltyBPS1, false, expectedPrice, {value: amt});
 
-      await expect(htlc.unlock(secretLock1, secretKey1))
+      await expect(htlc.unlock(user1.address, secretLock1, secretKey1))
         .to.changeEtherBalances([htlc.address, user2.address], [-amt, amt])
         .to.emit(htlc, "Unlock").withArgs(secretLock1, secretKey1);
 
-      const swap0 = await htlc.swaps(secretLock1);
+      const swap0 = await htlc.swaps(user1.address, secretLock1);
       expect(swap0.secretKey).to.equal(secretKey1);
       expect(swap0.state).to.equal(UNLOCKED);
 
-      expect(await htlc.getSwapState(secretLock1))
+      expect(await htlc.getSwapState(user1.address, secretLock1))
         .to.be.equal(UNLOCKED);
     });
 
@@ -316,14 +318,14 @@ describe("HTLC", function () {
 
       await htlc.connect(user1).lock(user2.address, secretLock1, sbchLockTime1, pkh1, penaltyBPS1, false, expectedPrice, {value: 12345});
 
-      await expect(htlc.refund(secretLock2))
+      await expect(htlc.refund(user1.address, secretLock2))
         .to.be.revertedWith("not-locked");
-      await expect(htlc.refund(secretLock1))
+      await expect(htlc.refund(user1.address, secretLock1))
         .to.be.revertedWith("not-refundable");
 
       // chain halted
       await time.increase(sbchLockTime1 + 10);
-      await expect(htlc.refund(secretLock1))
+      await expect(htlc.refund(user1.address, secretLock1))
         .to.be.revertedWith("not-refundable");
     });
 
@@ -334,11 +336,11 @@ describe("HTLC", function () {
 
       await time.increase(sbchLockTime1 + 10);
       await mine(sbchLockTime1/6 + 10);
-      await expect(htlc.refund(secretLock1))
+      await expect(htlc.refund(user1.address, secretLock1))
         .to.changeEtherBalances([htlc.address, user1.address, user2.address], [-20000, 19000, 1000])
         .to.be.emit(htlc, "Refund").withArgs(secretLock1);
 
-      expect(await htlc.getSwapState(secretLock1))
+      expect(await htlc.getSwapState(user1.address, secretLock1))
         .to.be.equal(REFUNDED);
 
       // print Expire event

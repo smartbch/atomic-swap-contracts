@@ -13,10 +13,11 @@ yargs(process.argv.slice(2))
     .command('query-swap', 'query swap', (yargs) => {
         return yargs
             .option('htlc-addr',  { required: true, type: 'string', description: 'HTLC contract address' })
+            .option('sender-addr',{ required: true, type: 'string', description: 'sender address' })
             .option('secret-key', { required: true, type: 'string', description: "unlock secret-key" })
             ;
     }, async (argv) => {
-        await querySwap(argv.htlcAddr, argv.secretKey);
+        await querySwap(argv.htlcAddr, argv.senderAddr, argv.secretKey);
     })
     .command('register-bot', 'register bot', (yargs) => {
         return yargs
@@ -60,35 +61,37 @@ yargs(process.argv.slice(2))
         return yargs
             .option('signer',      { required: false,type: 'number', default: 2})
             .option('htlc-addr',   { required: true, type: 'string', description: 'HTLC contract address' })
-            .option('to-addr',     { required: true, type: 'string', description: 'withdraw address' })
+            .option('to-addr',     { required: true, type: 'string', description: 'receiver address' })
             .option('secret-key',  { required: true, type: 'string', description: "unlock secret-key" })
             .option('lock-time',   { required: true, type: 'string', description: "locking period (in seconds)" })
-            .option('pkh',         { required: true, type: 'string', description: 'bch withdraw public key hash (hex)' })
+            .option('pkh',         { required: true, type: 'string', description: 'receiver BCH public key hash (hex)' })
             .option('penalty-bps', { required: true, type: 'string', description: 'penalty ratio of HTLC refund (in BPS)' })
             .option('amount',      { required: true, type: 'string', description: "locked value (in Ethers)" })
-            .option('expected-price', { required: false, type: 'number', default: 1.0, description: "expected price (float number)" })
+            .option('expected-price', { required: false, type: 'string', default: '1.0', description: "expected price (float number)" })
             ;
     }, async (argv) => {
         await lockBCH(argv.signer, argv.htlcAddr, argv.toAddr, argv.secretKey, argv.lockTime, argv.pkh, argv.penaltyBps, argv.amount,
-            Math.ceil(argv.expectedPrice * 1e8));
+            ethers.utils.parseEther(argv.expectedPrice));
     })
     .command('unlock', 'unlock sbch', (yargs) => {
         return yargs
             .option('signer',     { required: false,type: 'number', default: 3})
             .option('htlc-addr',  { required: true, type: 'string', description: 'HTLC contract address' })
+            .option('sender-addr',{ required: true, type: 'string', description: 'sender address' })
             .option('secret-key', { required: true, type: 'string', description: "unlock secret-key" })
             ;
     }, async (argv) => {
-        await unlockBCH(argv.signer, argv.htlcAddr, argv.secretKey);
+        await unlockBCH(argv.signer, argv.htlcAddr, argv.senderAddr, argv.secretKey);
     })
     .command('refund', 'refund sbch', (yargs) => {
         return yargs
             .option('signer',     { required: false,type: 'number', default: 2})
             .option('htlc-addr',  { required: true, type: 'string', description: 'HTLC contract address' })
+            .option('sender-addr',{ required: true, type: 'string', description: 'sender address' })
             .option('secret-key', { required: true, type: 'string', description: "unlock secret-key" })
             ;
     }, async (argv) => {
-        await refundBCH(argv.signer, argv.htlcAddr, argv.secretKey);
+        await refundBCH(argv.signer, argv.htlcAddr, argv.senderAddr, argv.secretKey);
     })
     .strictCommands()
     .argv;
@@ -135,13 +138,13 @@ async function getBots(htlc) {
     return bots;
 }
 
-async function querySwap(htlcAddr, secretKey) {
+async function querySwap(htlcAddr, senderAddr, secretKey) {
     const HTLC = await ethers.getContractFactory("AtomicSwapEther");
     const htlc = await HTLC.attach(htlcAddr);
     
     secretKey = ethers.utils.formatBytes32String(secretKey);
     const secretLock = ethers.utils.sha256(secretKey);
-    const swap = await htlc.swaps(secretLock);
+    const swap = await htlc.swaps(senderAddr, secretLock);
 
     const states = ["INVALID", "LOCKED", "UNLOCKED", "REFUNDED"];
     console.log({
@@ -156,6 +159,7 @@ async function querySwap(htlcAddr, secretKey) {
         penaltyBPS    : swap.penaltyBPS,
         state         : states[swap.state],
         secretKey     : swap.secretKey,
+        expectedPrice : ethers.utils.formatUnits(swap.expectedPrice),
     });
 }
 
@@ -199,25 +203,25 @@ async function lockBCH(signerIdx, htlcAddr, toAddr, secretKey, lockTime, pkh, pe
     console.log('result:', await tx.wait());
 }
 
-async function unlockBCH(signerIdx, htlcAddr, secretKey) {
+async function unlockBCH(signerIdx, htlcAddr, senderAddr, secretKey) {
     console.log('unlock sBCH ...');
     const [signer, htlc] = await getHTLC(signerIdx, htlcAddr);
     console.log('signer:', signer.address);
 
     secretKey = ethers.utils.formatBytes32String(secretKey);
     const secretLock = ethers.utils.sha256(secretKey);
-    const tx = await htlc.unlock(secretLock, secretKey);
+    const tx = await htlc.unlock(senderAddr, secretLock, secretKey);
     console.log('tx:', tx);
     console.log('result:', await tx.wait());
 }
 
-async function refundBCH(signerIdx, htlcAddr, secretKey) {
+async function refundBCH(signerIdx, htlcAddr, senderAddr, secretKey) {
     console.log('refund sBCH ...');
     const [signer, htlc] = await getHTLC(signerIdx, htlcAddr);
 
     secretKey = ethers.utils.formatBytes32String(secretKey);
     const secretLock = ethers.utils.sha256(secretKey);
-    const tx = await htlc.refund(secretLock);
+    const tx = await htlc.refund(senderAddr, secretLock);
     console.log('tx:', tx);
     console.log('result:', await tx.wait());
 }
