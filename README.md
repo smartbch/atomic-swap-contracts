@@ -26,7 +26,7 @@ REPORT_GAS=true npx hardhat test
 
 ```bash
 npx hardhat run scripts/deploy.js --network sbch_testnet
-# HTLC deployed to 0x3246D84c930794cDFAABBab954BAc58A7c08b4cd
+# HTLC deployed to 0xc456314331D6f50681266fCC6CcA8542Ae71EbD8
 ```
 
 
@@ -38,13 +38,14 @@ Example:
 ```bash
 HARDHAT_NETWORK=sbch_testnet node ./scripts/htlc.js lock \
 	--signer=2 \
-	--htlc-addr=0x3246D84c930794cDFAABBab954BAc58A7c08b4cd \
+	--htlc-addr=0xc456314331D6f50681266fCC6CcA8542Ae71EbD8 \
 	--to-addr=0x8b1C9950aA5c6fF3BB038ff31878dd6a268958f8 \
 	--secret-key=hello \
 	--lock-time=2400 \
 	--pkh=0xc03A886B25Cabc20dB49170981ef118693e807d1 \
 	--penalty-bps=500 \
-	--amount=0.01
+	--amount=0.01 \
+	--expected-price=1.0
 ```
 
 
@@ -56,7 +57,7 @@ Example:
 ```bash
 HARDHAT_NETWORK=sbch_testnet node ./scripts/htlc.js unlock \
 	--signer=3 \
-	--htlc-addr=0x3246D84c930794cDFAABBab954BAc58A7c08b4cd \
+	--htlc-addr=0xc456314331D6f50681266fCC6CcA8542Ae71EbD8 \
 	--secret-key=hello
 ```
 
@@ -69,19 +70,20 @@ Example:
 ```bash
 HARDHAT_NETWORK=sbch_testnet node ./scripts/htlc.js refund \
 	--signer=2 \
-	--htlc-addr=0x3246D84c930794cDFAABBab954BAc58A7c08b4cd \
+	--htlc-addr=0xc456314331D6f50681266fCC6CcA8542Ae71EbD8 \
 	--secret-key=hello
 ```
 
 
 
-## Register Marker Maker Bot
+## Register Market Maker Bot
 
 Example:
 
 ```bash
 HARDHAT_NETWORK=sbch_testnet node ./scripts/htlc.js register-bot \
-	--htlc-addr=0x3246D84c930794cDFAABBab954BAc58A7c08b4cd \
+	--signer=1 \
+	--htlc-addr=0xc456314331D6f50681266fCC6CcA8542Ae71EbD8 \
 	--intro=BCHFANS \
 	--pkh=0x4d027fdd0585302264922bed58b8a84d38776ccb \
 	--bch-lock-time=6 \
@@ -96,13 +98,32 @@ HARDHAT_NETWORK=sbch_testnet node ./scripts/htlc.js register-bot \
 
 
 
+## Update Merket Maker Bot
+
+Example:
+
+```bash
+HARDHAT_NETWORK=sbch_testnet node ./scripts/htlc.js update-bot \
+	--signer=1 \
+	--htlc-addr=0xc456314331D6f50681266fCC6CcA8542Ae71EbD8 \
+	--intro=BCHFANS \
+	--bch-price=1.1 \
+	--sbch-price=0.9
+```
+
+
+
 ## Query
 
 Example:
 
 ```bash
-HARDHAT_NETWORK=sbch_testnet node ./scripts/htlc.js query \
-	--htlc-addr=0x3246D84c930794cDFAABBab954BAc58A7c08b4cd
+HARDHAT_NETWORK=sbch_testnet node ./scripts/htlc.js query-bots \
+	--htlc-addr=0xc456314331D6f50681266fCC6CcA8542Ae71EbD8
+
+HARDHAT_NETWORK=sbch_testnet node ./scripts/htlc.js query-swap \
+	--htlc-addr=0xc456314331D6f50681266fCC6CcA8542Ae71EbD8 \
+	--secret-key=hello
 ```
 
 
