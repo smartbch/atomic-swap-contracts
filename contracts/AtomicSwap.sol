@@ -223,8 +223,8 @@ contract AtomicSwapEther {
     }
 
     // unlock value
-    function unlock(address sender, bytes32 _secretLock, bytes32 _secretKey) public {
-        Swap memory swap = swaps[sender][_secretLock];
+    function unlock(address _sender, bytes32 _secretLock, bytes32 _secretKey) public {
+        Swap memory swap = swaps[_sender][_secretLock];
         require(swap.state == States.LOCKED, 'not-locked');
         require(_secretLock == sha256(abi.encodePacked(_secretKey)), 'invalid-key');
         if(!swap.receiverIsMM) {
@@ -234,8 +234,8 @@ contract AtomicSwapEther {
         }
 
         // change state.
-        swaps[sender][_secretLock].secretKey = _secretKey;
-        swaps[sender][_secretLock].state = States.UNLOCKED;
+        swaps[_sender][_secretLock].secretKey = _secretKey;
+        swaps[_sender][_secretLock].state = States.UNLOCKED;
 
         // Transfer the ETH funds from this contract to the withdrawing trader.
         swap.receiver.transfer(swap.value);
@@ -245,15 +245,15 @@ contract AtomicSwapEther {
     }
 
     // refund value
-    function refund(address sender, bytes32 _secretLock) public {
-        Swap memory swap = swaps[sender][_secretLock];
+    function refund(address _sender, bytes32 _secretLock) public {
+        Swap memory swap = swaps[_sender][_secretLock];
         require(swap.state == States.LOCKED, 'not-locked');
         uint validBlocks = swap.validPeriod/BLOCK_INTERVAL;
         require(swap.startTime + swap.validPeriod < block.timestamp &&
                 swap.startHeight + validBlocks < block.number, 'not-refundable');
 
         // change the state.
-        swaps[sender][_secretLock].state = States.REFUNDED;
+        swaps[_sender][_secretLock].state = States.REFUNDED;
 
         // Transfer the ETH value from this contract back to the ETH trader (minus penalty).
         uint256 penalty = 0;
