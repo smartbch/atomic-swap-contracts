@@ -52,6 +52,7 @@ contract AtomicSwapEther {
 
     uint constant private HALT_TIME = 1800;
     uint32 constant private BLOCK_INTERVAL = 6;
+    uint constant private EXPIRE_TIME = 30 days;
 
 
     // All swaps, (sender, secretLock) => Swap
@@ -222,6 +223,30 @@ contract AtomicSwapEther {
             _receiverBchPkh, block.timestamp, _penaltyBPS, _expectedPrice);
     }
 
+    // same as lock, delete an old swap to save gas
+    function lock2(address payable _receiver,
+                  bytes32 _secretLock,
+                  uint256 _validPeriod,
+                  bytes20 _receiverBchPkh,
+                  uint16  _penaltyBPS,
+                  bool    _receiverIsMM,
+                  uint256 _expectedPrice,
+                  address _oldSender,
+                  bytes32 _oldSecretLock) public payable {
+        lock(_receiver, _secretLock, _validPeriod, _receiverBchPkh, _penaltyBPS, _receiverIsMM, _expectedPrice);
+        deleteOldSwap(_oldSender, _oldSecretLock);
+    }
+
+    function deleteOldSwap(address _oldSender, bytes32 _oldSecretLock) private {
+        if (_oldSecretLock != 0) {
+            if (swaps[_oldSender][_oldSecretLock].startTime + EXPIRE_TIME < block.timestamp
+                && swaps[_oldSender][_oldSecretLock].state != States.LOCKED) {
+
+                delete swaps[_oldSender][_oldSecretLock];
+            }
+        }
+    }
+
     // unlock value
     function unlock(address _sender, bytes32 _secretLock, bytes32 _secretKey) public {
         Swap memory swap = swaps[_sender][_secretLock];
@@ -242,6 +267,14 @@ contract AtomicSwapEther {
 
         // Trigger unlock event.
         emit Unlock(_secretLock, _secretKey);
+    }
+
+    // same as unlock, delete an old swap to save gas
+    function unlock2(address _sender, bytes32 _secretLock, bytes32 _secretKey,
+            address _oldSender, bytes32 _oldSecretLock) public {
+ 
+        unlock(_sender, _secretLock, _secretKey);
+        deleteOldSwap(_oldSender, _oldSecretLock);
     }
 
     // refund value

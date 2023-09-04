@@ -10,6 +10,7 @@ describe("HTLC", function () {
 
   const minStakedValue = 1234567890;
   const minRetireDelay = 12 * 3600;
+  const swapExpireTime = 30 * 24 * 3600;
 
   // We define a fixture to reuse the same setup in every test.
   // We use loadFixture to run this setup once, snapshot that state,
@@ -40,7 +41,7 @@ describe("HTLC", function () {
   const maxSwapAmt1   = ethers.utils.parseUnits('1.0')
   const zeroBytes32   = ethers.utils.formatBytes32String('');
   const secretKey1    = ethers.utils.formatBytes32String('123');
-  const secretKey2    = ethers.utils.formatBytes32String('456');      
+  const secretKey2    = ethers.utils.formatBytes32String('456');
   const secretLock1   = ethers.utils.sha256(secretKey1);
   const secretLock2   = ethers.utils.sha256(secretKey2);
 
@@ -354,6 +355,35 @@ describe("HTLC", function () {
       // });
       // console.log(result);
     });
+
+    it("lock2/unlock2: deleteOldSwap", async function () {
+      const { htlc, user1, user2 } = await loadFixture(deployFixture);
+
+      await htlc.connect(user1).lock(user2.address, secretLock1, sbchLockTime1, pkh1, 500, false, expectedPrice, {value: 20000});
+      await htlc.connect(user1).lock(user2.address, secretLock2, sbchLockTime1, pkh1, 500, false, expectedPrice, {value: 20000});
+
+      await mine(sbchLockTime1 + 10);
+      await htlc.connect(user2).unlock(user1.address, secretLock1, secretKey1);
+      await htlc.connect(user1).refund(user1.address, secretLock2);
+      expect(await htlc.getSwapState(user1.address, secretLock1))
+        .to.be.equal(UNLOCKED);
+      expect(await htlc.getSwapState(user1.address, secretLock2))
+        .to.be.equal(REFUNDED);
+
+      // test lock2
+      await mine(swapExpireTime + 10);
+      await htlc.connect(user2).lock2(user1.address, secretLock1, sbchLockTime1, pkh1, 500, false, expectedPrice, 
+        user1.address, secretLock1, {value: 20000});
+      expect(await htlc.getSwapState(user1.address, secretLock1))
+        .to.be.equal(INVALID); // deleted
+
+      // test unlock2
+      await htlc.connect(user2).lock(user1.address, secretLock2, sbchLockTime1, pkh1, 500, false, expectedPrice, {value: 20000});
+      await mine(sbchLockTime1 + 10);
+      await htlc.connect(user1).unlock2(user2.address, secretLock2, secretKey2, user1.address, secretLock2);
+      expect(await htlc.getSwapState(user1.address, secretLock2))
+        .to.be.equal(INVALID); // deleted
+    })
 
   });
 
