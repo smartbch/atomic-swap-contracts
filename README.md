@@ -115,6 +115,30 @@ HARDHAT_NETWORK=sbch_testnet node ./scripts/htlc.js update-bot \
 
 
 
+## Retire Market Maker Bot
+
+Example:
+
+```bash
+HARDHAT_NETWORK=sbch_testnet node ./scripts/htlc.js retire-bot \
+	--signer=1 \
+	--htlc-addr=0x7aCB985210037983c7E1814c847d63235CCcB88f
+```
+
+
+
+## Withdraw Staked Value
+
+Example:
+
+```bash
+HARDHAT_NETWORK=sbch_testnet node ./scripts/htlc.js withdraw \
+	--signer=1 \
+	--htlc-addr=0x7aCB985210037983c7E1814c847d63235CCcB88f
+```
+
+
+
 ## Query
 
 Example:

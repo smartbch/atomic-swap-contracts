@@ -57,6 +57,22 @@ yargs(process.argv.slice(2))
             ethers.utils.parseEther(argv.bchPrice),
             ethers.utils.parseEther(argv.sbchPrice));
     })
+    .command('retire-bot', 'retire bot', (yargs) => {
+        return yargs
+            .option('signer',     { required: false,type: 'number', default: 1})
+            .option('htlc-addr',  { required: true, type: 'string', description: 'HTLC contract address' })
+            ;
+    }, async (argv) => {
+        await retireBot(argv.signer, argv.htlcAddr);
+    })
+    .command('withdraw', 'withdraw staked value', (yargs) => {
+        return yargs
+            .option('signer',     { required: false,type: 'number', default: 1})
+            .option('htlc-addr',  { required: true, type: 'string', description: 'HTLC contract address' })
+            ;
+    }, async (argv) => {
+        await withdraw(argv.signer, argv.htlcAddr);
+    })
     .command('lock', 'lock sbch', (yargs) => {
         return yargs
             .option('signer',      { required: false,type: 'number', default: 2})
@@ -186,6 +202,26 @@ async function updateBot(signerIdx, htlcAddr, intro, bchPrice, sbchPrice) {
 
     const botIntro = ethers.utils.formatBytes32String(intro);
     const tx = await htlc.updateMarketMaker(botIntro, bchPrice, sbchPrice);
+    console.log('tx:', tx);
+    console.log('result:', await tx.wait());
+}
+
+async function retireBot(signerIdx, htlcAddr) {
+    console.log('retire bot ...');
+    const [signer, htlc] = await getHTLC(signerIdx, htlcAddr);
+    console.log('signer:', signer.address);
+
+    const tx = await htlc.retireMarketMaker();
+    console.log('tx:', tx);
+    console.log('result:', await tx.wait());
+}
+
+async function withdraw(signerIdx, htlcAddr) {
+    console.log('retire bot ...');
+    const [signer, htlc] = await getHTLC(signerIdx, htlcAddr);
+    console.log('signer:', signer.address);
+
+    const tx = await htlc.withdrawStakedValue();
     console.log('tx:', tx);
     console.log('result:', await tx.wait());
 }
