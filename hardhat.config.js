@@ -26,7 +26,7 @@ module.exports = {
     },
     sbch_mainnet: {
       url: 'https://rpc.smartbch.org',
-      accounts: [process.env.KEY || '0000000000000000000000000000000000000000000000000000000000000000'],
+      accounts: [process.env.KEY || '0000000000000000000000000000000000000000000000000000000000000001'],
       minStakedValue: '1.0',
       minRetireDelay: 48 * 3600,
     },
