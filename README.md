@@ -151,6 +151,9 @@ HARDHAT_NETWORK=sbch_testnet node ./scripts/htlc.js query-swap \
 	--htlc-addr=0x7aCB985210037983c7E1814c847d63235CCcB88f \
 	--sender-addr=0x621e0B041D19B6472B1e991fE53D78aF3C264FA8 \
 	--secret-key=hello
+
+HARDHAT_NETWORK=sbch_mainnet node ./scripts/htlc.js query-bots \
+	--htlc-addr=0xBa26D85Bef070Ed2C6B0D555aAAc1c54611ECd22
 ```
 
 
